@@ -1,0 +1,25 @@
+{
+  "name": "val",
+  "displayName": "val",
+  "description": "Val",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "val",
+      "aliases": ["Val", "val"],
+      "extensions": [".val"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "val",
+      "scopeName": "source.val",
+      "path": "./syntaxes/val.tmLanguage.json"
+    }]
+  }
+}
