@@ -221,7 +221,7 @@
 				},
 				{
 					"name": "keyword.modifier.val",
-					"match": "\\b(public|private|static)\\b"
+					"match": "\\b(public|static)\\b"
 				},
 				{
 					"name": "keyword.convention.val",
