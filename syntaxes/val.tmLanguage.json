@@ -17,28 +17,28 @@
 	],
 	"repository": {
 		"comments": {
-      "patterns": [
-        {
-          "name": "comment.line.documentation.val",
-          "begin": "//",
-          "end": "$",
-          "patterns": [
-            {
-              "include": "#commentContents"
-            }
-          ]
-        },
+			"patterns": [
 				{
-          "name": "comment.block.documentation.val",
-          "begin": "/\\*",
-          "end": "\\*/",
-          "patterns": [
-            {
-              "include": "#commentContents"
-            }
-          ]
-        }
-      ],
+					"name": "comment.line.documentation.val",
+					"begin": "//",
+					"end": "$",
+					"patterns": [
+						{
+							"include": "#commentContents"
+						}
+					]
+				},
+				{
+					"name": "comment.block.documentation.val",
+					"begin": "/\\*",
+					"end": "\\*/",
+					"patterns": [
+						{
+							"include": "#commentContents"
+						}
+					]
+				}
+			],
 			"repository": {
 				"commentContents": {
 					"patterns": [
@@ -49,11 +49,17 @@
 					]
 				}
 			}
-    },
+		},
 		"declarations": {
 			"patterns": [
 				{
 					"include": "#function"
+				},
+				{
+					"include": "#type"
+				},
+				{
+					"include": "#trait"
 				}
 			],
 			"repository": {
@@ -61,26 +67,91 @@
 					"name": "meta.definition.function.val",
 					"begin": "\\b(fun)\\s+(\\w+)?(?=\\(|<)",
 					"beginCaptures": {
-						"1": { "name": "storage.type.function.val" },
-						"2": { "name": "entity.name.function.val" }
+						"1": {
+							"name": "storage.type.function.val"
+						},
+						"2": {
+							"name": "entity.name.function.val"
+						}
 					},
 					"end": "(?<=\\})|$",
 					"patterns": [
-						{ "include": "#comments" },
-						{ "include": "#generic-parameter-clause" }
+						{
+							"include": "#comments"
+						},
+						{
+							"include": "#generic-parameter-clause"
+						},
+						{
+							"include": "#keywords"
+						}
+					]
+				},
+				"type": {
+					"name": "meta.definition.type.val",
+					"begin": "\\b(type )",
+					"beginCaptures": {
+						"1": {
+							"name": "storage.type.type.val"
+						},
+						"2": {
+							"name": "entity.name.type.val"
+						}
+					},
+					"end": "(?<=\\})|$",
+					"patterns": [
+						{
+							"include": "#comments"
+						},
+						{
+							"include": "#generic-parameter-clause"
+						},
+						{
+							"include": "#keywords"
+						}
+					]
+				},
+				"trait": {
+					"name": "meta.definition.trait.val",
+					"begin": "\\b(trait )",
+					"beginCaptures": {
+						"1": {
+							"name": "storage.type.trait.val"
+						},
+						"2": {
+							"name": "entity.name.trait.val"
+						}
+					},
+					"end": "(?<=\\})|$",
+					"patterns": [
+						{
+							"include": "#comments"
+						},
+						{
+							"include": "#generic-parameter-clause"
+						},
+						{
+							"include": "#keywords"
+						}
 					]
 				},
 				"generic-parameter-clause": {
 					"begin": "<",
 					"beginCaptures": {
-						"0": { "name": "punctuation.separator.generic-parameter-clause.begin.val" }
+						"0": {
+							"name": "punctuation.separator.generic-parameter-clause.begin.val"
+						}
 					},
 					"end": ">",
 					"endCaptures": {
-						"0": { "name": "punctuation.separator.generic-parameter-clause.end.val" }
+						"0": {
+							"name": "punctuation.separator.generic-parameter-clause.end.val"
+						}
 					},
 					"patterns": [
-						{ "include": "#comments" },
+						{
+							"include": "#comments"
+						},
 						{
 							"name": "punctuation.separator.generic-parameters.val",
 							"match": ","
@@ -88,14 +159,18 @@
 						{
 							"match": "\\b((?!\\d)\\w[\\w\\d]*)\\b",
 							"captures": {
-								"1": { "name": "variable.language.generic-parameter.val" }
+								"1": {
+									"name": "variable.language.generic-parameter.val"
+								}
 							}
 						},
 						{
 							"name": "meta.generic-parameter-constraint.val",
 							"begin": "(:)\\s*",
 							"beginCaptures": {
-								"1": { "name": "punctuation.separator.generic-parameter-constraint.val" }
+								"1": {
+									"name": "punctuation.separator.generic-parameter-constraint.val"
+								}
 							},
 							"end": "(?=[,>]|(?!\\G)\\bwhere\\b)",
 							"patterns": [
@@ -113,37 +188,57 @@
 		"keywords": {
 			"patterns": [
 				{
-					"name": "keyword.control.import.val",
-					"match": "\\bimport\\b"
+					"name": "keyword.fun.val",
+					"match": "\\b(fun)\\b"
 				},
 				{
-					"name": "keyword.control.branch.val",
-          "match": "\\b(trait|type)\\b"
-        },
+					"name": "keyword.control.import.val",
+					"match": "\\b(import)\\b"
+				},
 				{
 					"name": "keyword.control.transfer.val",
-          "match": "\\b(break|continue|return|throw|yield)\\b"
-        },
+					"match": "\\b(break|continue|return|throw|yield|yielded)\\b"
+				},
 				{
 					"name": "keyword.control.loop.val",
-					"match": "\\b(while|for|in)\\b"
+					"match": "\\b(while|for|do|in)\\b"
+				},
+				{
+					"name": "keyword.control.conditional.val",
+					"match": "\\b(if|else|match|where)\\b"
 				},
 				{
 					"name": "keyword.control.scope.val",
-          "match": "\\b(catch|defer|try)\\b"
-        },
+					"match": "\\b(catch|defer|try)\\b"
+				},
 				{
 					"name": "keyword.type.val",
-          "match": "\\b(conformance|extension|namespace|trait|type)\\b"
-        },
+					"match": "\\b(conformance|extension|namespace|typealias)\\b"
+				},
+				{
+					"name": "keyword.operator.val",
+					"match": "\\b(operator|postfix|prefix|infix)\\b"
+				},
 				{
 					"name": "keyword.modifier.val",
-          "match": "\\b(public|static)\\b"
-        },
+					"match": "\\b(public|private|static)\\b"
+				},
 				{
 					"name": "keyword.convention.val",
-          "match": "\\b(inout|let|set|sink)\\b"
-        },
+					"match": "\\b(inout|let|set|sink)\\b"
+				},
+				{
+					"name": "keyword.subscript.val",
+					"match": "\\b(property|subscript)\\b"
+				},
+				{
+					"name": "keyword.var.val",
+					"match": "\\b(var)\\b"
+				},
+				{
+					"name": "keyword.misc.val",
+					"match": "\\b(deinit|some|spawn|is|as)\\b"
+				},
 				{
 					"name": "variable.language.val",
 					"match": "\\b(?:self|Self)\\b"
@@ -159,6 +254,12 @@
 					"include": "#numeric"
 				},
 				{
+					"include": "#nil"
+				},
+				{
+					"include": "#any"
+				},
+				{
 					"include": "#string"
 				}
 			],
@@ -166,6 +267,14 @@
 				"boolean": {
 					"name": "constant.language.boolean.val",
 					"match": "\\b(true|false)\\b"
+				},
+				"nil": {
+					"name": "constant.language.nil.val",
+					"match": "\\b(nil)\\b"
+				},
+				"any": {
+					"name": "constant.language.any.val",
+					"match": "\\b(any)\\b"
 				},
 				"numeric": {
 					"patterns": [
