@@ -1,3 +1,3 @@
-# vscode-val
+# vscode-hylo
 
-Syntax highlighting for [Val](https://val-lang.dev) in Visual Studio Code.
+Syntax highlighting for [Hylo](https://hylo-lang.org) in Visual Studio Code.

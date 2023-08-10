@@ -1,7 +1,7 @@
 {
-  "name": "val",
-  "displayName": "val",
-  "description": "Val",
+  "name": "hylo",
+  "displayName": "hylo",
+  "description": "Hylo",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.74.0"
@@ -11,15 +11,15 @@
   ],
   "contributes": {
     "languages": [{
-      "id": "val",
-      "aliases": ["Val", "val"],
-      "extensions": [".val"],
+      "id": "hylo",
+      "aliases": ["Hylo", "hylo"],
+      "extensions": [".hylo"],
       "configuration": "./language-configuration.json"
     }],
     "grammars": [{
-      "language": "val",
-      "scopeName": "source.val",
-      "path": "./syntaxes/val.tmLanguage.json"
+      "language": "hylo",
+      "scopeName": "source.hylo",
+      "path": "./syntaxes/hylo.tmLanguage.json"
     }]
   }
 }
