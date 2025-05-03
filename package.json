@@ -63,7 +63,8 @@
         {
           "id": "hylo.ast-explorer",
           "name": "Hylo AST Explorer",
-          "type": "webview"
+          "type": "webview",
+          "icon": "./icons/colored-light.png"
         }
       ]
     }

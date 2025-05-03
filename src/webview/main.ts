@@ -1,2 +1,1 @@
-import "./ast-explorer-view-frontend";
-
+import './ast-explorer-view-frontend';

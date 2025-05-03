@@ -18,7 +18,10 @@ export function activate(context: vscode.ExtensionContext) {
       const position = editor.selection.active;
 
       // Create range for ±1 character around cursor
-      const startPos = new vscode.Position(position.line, Math.max(0, position.character - 2));
+      const startPos = new vscode.Position(
+        position.line,
+        Math.max(0, position.character - 2)
+      );
       const endPos = new vscode.Position(position.line, position.character + 2);
       const range = new vscode.Range(startPos, endPos);
 
@@ -35,10 +38,15 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
-  const astExplorerViewProvider = new ASTExplorerViewProvider(context.extensionUri);
+  const astExplorerViewProvider = new ASTExplorerViewProvider(
+    context.extensionUri
+  );
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(ASTExplorerViewProvider.viewType, astExplorerViewProvider)
+    vscode.window.registerWebviewViewProvider(
+      ASTExplorerViewProvider.viewType,
+      astExplorerViewProvider
+    )
   );
 }
 
@@ -49,7 +57,10 @@ export function deactivate() {
 }
 
 function range(l1: number, c1: number, l2: number, c2: number) {
-  return new vscode.Range(new vscode.Position(l1, c1), new vscode.Position(l2, c2));
+  return new vscode.Range(
+    new vscode.Position(l1, c1),
+    new vscode.Position(l2, c2)
+  );
 }
 function node(
   title: string,
