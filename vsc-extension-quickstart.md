@@ -5,18 +5,17 @@
 - This folder contains all of the files necessary for your extension.
 - `package.json` - this is the manifest file in which you declare your extension and command.
   - The sample plugin registers a command and defines its title and command name. With this information VS Code can show the command in the command palette. It doesn’t yet need to load the plugin.
-- `src/extension.ts` - this is the main file where you will provide the implementation of your command.
-  - The file exports one function, `activate`, which is called the very first time your extension is activated (in this case by executing the command). Inside the `activate` function we call `registerCommand`.
-  - We pass the function containing the implementation of the command as the second parameter to `registerCommand`.
+- `syntaxes/hylo.tmLanguage.json` - this is the Text mate grammar file that is used for tokenization.
+- `language-configuration.json` - this is the language configuration, defining the tokens that are used for comments and brackets.
+- `src/extension.ts` - this is the main file where you will provide the implementation of commands.
 
 ## Setup
 
-- install the recommended extensions (amodio.tsl-problem-matcher, ms-vscode.extension-test-runner, and dbaeumer.vscode-eslint)
+- install the recommended extensions (`amodio.tsl-problem-matcher`, `ms-vscode.extension-test-runner`, and `dbaeumer.vscode-eslint`)
 
 ## Get up and running straight away
 
 - Press `F5` to open a new window with your extension loaded.
-- Run your command from the command palette by pressing (`Ctrl+Shift+P` or `Cmd+Shift+P` on Mac) and typing `Hello World`.
 - Set breakpoints in your code inside `src/extension.ts` to debug your extension.
 - Find output from your extension in the debug console.
 
