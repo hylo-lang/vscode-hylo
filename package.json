@@ -8,16 +8,21 @@
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
   "extensionKind": [
     "ui",
     "workspace"
   ],
+  "keywords": [
+    "hylo",
+    "mvs",
+    "syntax highlighting"
+  ],
   "publisher": "hylo",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tothambrus11/vscode-hylo"
+    "url": "https://github.com/hylo-lang/vscode-hylo"
   },
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -26,8 +31,7 @@
       {
         "id": "hylo",
         "aliases": [
-          "Hylo",
-          "hylo"
+          "Hylo"
         ],
         "extensions": [
           ".hylo"
