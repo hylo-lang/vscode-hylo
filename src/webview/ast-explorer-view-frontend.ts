@@ -1,11 +1,8 @@
 // This script will be run within the webview itself
 
 // import { VscodeTextfield, VscodeTree } from '@vscode-elements/elements';
-import { VscodeTree, VscodeTextfield } from '@vscode-elements/elements';
-import {
-  TreeItemIconConfig,
-  TreeItem
-} from '@vscode-elements/elements/dist/vscode-tree/vscode-tree';
+import { VscodeTextfield, VscodeTree } from '@vscode-elements/elements';
+import { TreeItem, TreeItemIconConfig } from '@vscode-elements/elements/dist/vscode-tree/vscode-tree';
 
 import { vscode } from './vscode';
 import {
@@ -15,9 +12,7 @@ import {
   asProductTypeDecl,
   AST,
   asTranslationUnit,
-  isModuleDecl,
   isTranslationUnit,
-  ModuleDecl,
   node,
   NodeID,
   nodeKind,
@@ -63,9 +58,14 @@ class ASTExplorerView {
       switch (actionId) {
         case 'openSourceFile':
           const translationUnitId = JSON.parse(item.value) as NodeID; // only works for translationUnit (todo fix)
-          const translationUnit = asTranslationUnit(node(this.ast!, translationUnitId));
+          const translationUnit = asTranslationUnit(
+            node(this.ast!, translationUnitId)
+          );
 
-          postMessage({ type: 'openSourceFile', fileUrl: translationUnit.site.fileUrl });
+          postMessage({
+            type: 'openSourceFile',
+            fileUrl: translationUnit.site.fileUrl
+          });
           break;
 
         case 'highlightFullDeclaration': // only works for functionDecl (todo fix)
@@ -93,7 +93,10 @@ class ASTExplorerView {
       const n = node(this.ast!, nodeId);
 
       if (isTranslationUnit(n)) {
-        postMessage({ type: 'openSourceFile', fileUrl: n.TranslationUnit.site.fileUrl });
+        postMessage({
+          type: 'openSourceFile',
+          fileUrl: n.TranslationUnit.site.fileUrl
+        });
       }
     }) as EventListener);
 
@@ -105,7 +108,9 @@ class ASTExplorerView {
   updateAst(ast: AST) {
     this.ast = ast;
 
-    this.astTreeView.data = ast.modulesIds.map((moduleId) => renderModuleDecl(ast, moduleId));
+    this.astTreeView.data = ast.modulesIds.map((moduleId) =>
+      renderModuleDecl(ast, moduleId)
+    );
   }
 }
 
@@ -121,7 +126,11 @@ function renderModuleDecl(ast: AST, moduleId: NodeID): TreeItem {
     )
   } satisfies TreeItem;
 }
-function renderTranslationUnitDecl(ast: AST, translationUnitId: NodeID): TreeItem {
+
+function renderTranslationUnitDecl(
+  ast: AST,
+  translationUnitId: NodeID
+): TreeItem {
   const translationUnit = asTranslationUnit(node(ast, translationUnitId));
   return {
     icons: uniformIcon('file'),
@@ -150,7 +159,9 @@ function renderFunctionDecl(ast: AST, functionDeclId: NodeID): TreeItem {
         icons: uniformIcon('symbol-property'),
         label: 'parameters',
         value: 'n',
-        subItems: n.parameters.map((parameterId) => renderParameterDecl(ast, parameterId))
+        subItems: n.parameters.map((parameterId) =>
+          renderParameterDecl(ast, parameterId)
+        )
       }
     ],
     decorations: [
@@ -235,6 +246,7 @@ function renderParameterDecl(ast: AST, parameterDeclId: NodeID): TreeItem {
     ]
   };
 }
+
 function renderAnyDecl(ast: AST, nodeId: NodeID): TreeItem {
   const n = node(ast, nodeId);
 
@@ -253,6 +265,7 @@ function renderAnyDecl(ast: AST, nodeId: NodeID): TreeItem {
       return renderParameterDecl(ast, nodeId);
   }
 }
+
 const view = new ASTExplorerView();
 
 document.querySelector('#view-root')!.appendChild(view.root);

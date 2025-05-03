@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { NodeID, SourceRange } from './webview/types';
+import { SourceRange } from './webview/types';
 import { MessageFromFrontend } from './webview/messages';
 
 export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
@@ -7,7 +7,8 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 
   private view?: vscode.WebviewView;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(private readonly _extensionUri: vscode.Uri) {
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -30,7 +31,9 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
       switch (data.type) {
         case 'openSourceFile':
           console.log('openSourceFile', data.fileUrl);
-          vscode.window.showTextDocument(vscode.Uri.parse(data.fileUrl), {preserveFocus: true});
+          vscode.window.showTextDocument(vscode.Uri.parse(data.fileUrl), {
+            preserveFocus: true
+          });
           break;
         case 'highlightFullDeclaration':
           console.log('highlightFullDeclaration', data.range);
@@ -67,7 +70,10 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
       vscode.Uri.joinPath(this._extensionUri, 'out/webview.js')
     );
     const codiconsUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'node_modules/@vscode/codicons/dist/codicon.css')
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        'node_modules/@vscode/codicons/dist/codicon.css'
+      )
     );
     // Use a nonce to only allow a specific script to be run.
     const nonce = getNonce();
@@ -75,6 +81,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
+			  <title>Hylo AST Explorer View</title>
 				<meta charset="UTF-8">
 
 				<!--
@@ -82,7 +89,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 					and only allow scripts that have a specific nonce.
 					(See the 'webview-sample' extension sample for img-src content security policy examples)
 				-->
-				
+
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link href="${codiconsUri}" rel="stylesheet" id="vscode-codicon-stylesheet"/>
 			</head>
@@ -103,9 +110,11 @@ function toVscodeRange(range: SourceRange): vscode.Range {
     range.end.column - 1
   );
 }
+
 export function getNonce() {
   let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const possible =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   for (let i = 0; i < 32; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
