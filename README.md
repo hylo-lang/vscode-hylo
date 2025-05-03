@@ -1,3 +1,4 @@
-# vscode-hylo
+# Hylo Language Extension
 
-Syntax highlighting for [Hylo](https://hylo-lang.org) in Visual Studio Code.
+Provides syntax highlighting for the Hylo language.
+
