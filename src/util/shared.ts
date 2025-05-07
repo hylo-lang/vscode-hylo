@@ -60,7 +60,7 @@ export function spawnProcess(
     args = args.map(normalizePath)
 
     outputChannel.appendLine(`Executing : ${cleanCommand} ${args.join(' ')}`);
-    outputChannel.appendLine(`Working directory : ${cwd}`);
+    outputChannel.appendLine(`Working directory : ${cwd}\n\n===================================================\n`);
     
     const proc = spawn(cleanCommand, args, options);
     
