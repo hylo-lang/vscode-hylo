@@ -3,7 +3,7 @@
   "displayName": "Hylo",
   "description": "VSCode extension for Hylo language",
   "icon": "icons/colored-dark.png",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -11,7 +11,6 @@
     "Programming Languages"
   ],
   "extensionKind": [
-    "ui",
     "workspace"
   ],
   "keywords": [
@@ -232,7 +231,7 @@
         },
         "hylo.commandTemplate": {
           "type": "string",
-          "default": "${COMPILER} ${ARGS}",
+          "default": "swift run hc ${ARGS}",
           "description": "Template for the Hylo compiler command. Use ${COMPILER} for the compiler path and ${ARGS} for arguments."
         },
         "hylo.tempOutputDir": {
@@ -252,7 +251,8 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package:vsix": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -262,6 +262,7 @@
     "@typescript-eslint/parser": "^8.17.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^2.24.0",
     "eslint": "^9.16.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.7.2",

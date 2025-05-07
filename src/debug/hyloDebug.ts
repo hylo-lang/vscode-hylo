@@ -3,10 +3,10 @@ import { DebugSession, InitializedEvent, TerminatedEvent, OutputEvent } from '@v
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as path from 'path';
 import * as fs from 'fs';
-import { spawn } from 'child_process';
+import { isWindows, normalizePath, getHyloOutputChannel, spawnProcess } from '../util/shared';
 
-// Output channel reference that will be used instead of terminal
-let outputChannel: vscode.OutputChannel | undefined;
+// Output channel reference for debug sessions
+let debugOutputChannel: vscode.OutputChannel | undefined;
 
 /**
  * This is the debug adapter that "pretends" to debug Hylo files
@@ -15,14 +15,14 @@ let outputChannel: vscode.OutputChannel | undefined;
 export class HyloDebugSession extends DebugSession {
     public constructor() {
         super();
-        
+
         // We do everything in the initialized request
         this.setDebuggerLinesStartAt1(false);
         this.setDebuggerColumnsStartAt1(false);
-        
+
         // Create output channel if it doesn't exist
-        if (!outputChannel) {
-            outputChannel = vscode.window.createOutputChannel('Hylo Debug');
+        if (!debugOutputChannel) {
+            debugOutputChannel = vscode.window.createOutputChannel('Hylo Debug');
         }
     }
 
@@ -36,7 +36,7 @@ export class HyloDebugSession extends DebugSession {
 
         // Now it's ok to process events
         this.sendResponse(response);
-        
+
         // Signal readiness
         this.sendEvent(new InitializedEvent());
     }
@@ -49,13 +49,13 @@ export class HyloDebugSession extends DebugSession {
         // Extract program path from arguments
         const programPath = args.program as string;
         const isFolder = args.isFolder as boolean;
-        
+
         // Show output channel
-        if (outputChannel) {
-            outputChannel.clear();
-            outputChannel.show(true);
+        if (debugOutputChannel) {
+            debugOutputChannel.clear();
+            debugOutputChannel.show(true);
         }
-        
+
         try {
             // If it's a folder, find all .hylo files and compile them
             if (isFolder) {
@@ -64,7 +64,7 @@ export class HyloDebugSession extends DebugSession {
                 // If it's a file, just compile that file
                 await this.compileFile(programPath, args);
             }
-            
+
             // Tell the client we're done debugging
             this.sendResponse(response);
             this.sendEvent(new TerminatedEvent());
@@ -82,8 +82,8 @@ export class HyloDebugSession extends DebugSession {
     private async compileFile(filePath: string, args: any): Promise<void> {
         const fileName = path.basename(filePath);
         const fileNameWithoutExt = path.parse(fileName).name;
-        
-        await this.compileAndRunHylo(filePath, fileNameWithoutExt, args);
+
+        await this.compileAndRunHylo(normalizePath(filePath), normalizePath(fileNameWithoutExt), args);
     }
 
     /**
@@ -92,7 +92,7 @@ export class HyloDebugSession extends DebugSession {
     private async compileFolder(folderPath: string, args: any): Promise<void> {
         const folderName = path.basename(folderPath);
         const hyloFiles = await this.findHyloFiles(folderPath);
-        
+
         if (hyloFiles.length === 0) {
             this.sendEvent(new OutputEvent('No Hylo files found in the selected folder\n', 'console'));
             return;
@@ -106,15 +106,15 @@ export class HyloDebugSession extends DebugSession {
      */
     private async findHyloFiles(directoryPath: string): Promise<string[]> {
         const hyloFiles: string[] = [];
-        
+
         // Read all files in the directory
         try {
             const files = fs.readdirSync(directoryPath);
-            
+
             for (const file of files) {
                 const filePath = path.join(directoryPath, file);
                 const stat = fs.statSync(filePath);
-                
+
                 if (stat.isDirectory()) {
                     // Recursively search subdirectories
                     const subDirFiles = await this.findHyloFiles(filePath);
@@ -128,7 +128,7 @@ export class HyloDebugSession extends DebugSession {
             const message = error instanceof Error ? error.message : String(error);
             this.sendEvent(new OutputEvent(`Error reading directory: ${message}\n`, 'stderr'));
         }
-        
+
         return hyloFiles;
     }
 
@@ -136,24 +136,32 @@ export class HyloDebugSession extends DebugSession {
      * Compile and run Hylo code with real-time output streaming
      */
     private async compileAndRunHylo(sourcePath: string | string[], outputName: string, args: any): Promise<void> {
-        if (!outputChannel) {
+        if(!Array.isArray(sourcePath)) {
+            sourcePath = [sourcePath]; // Ensure sourcePath is always an array
+        }
+        if(!sourcePath.length) {
+            this.sendEvent(new OutputEvent('No source files provided\n', 'stderr'));
+            return;
+        }
+        sourcePath = sourcePath.map(normalizePath);
+        if (!debugOutputChannel) {
             this.sendEvent(new OutputEvent('Output channel not available\n', 'stderr'));
             return;
         }
-        
+
         // Get extension configuration
         const config = vscode.workspace.getConfiguration('hylo');
-        
+
         // Get config from extension settings first, then override with launch.json if specified
         const compilerPath = args.compilerPath !== undefined ? args.compilerPath : config.get<string>('compilerPath', 'hc');
         const useCommandTemplate = args.useCommandTemplate !== undefined ? args.useCommandTemplate : config.get<boolean>('useCommandTemplate', false);
-        const commandTemplate = args.commandTemplate !== undefined ? args.commandTemplate : config.get<string>('commandTemplate', '${COMPILER} ${ARGS}');
+        const commandTemplate = args.commandTemplate !== undefined ? args.commandTemplate : config.get<string>('commandTemplate', 'swift run hc ${ARGS}');
         let tempOutputDir = args.tempOutputDir !== undefined ? args.tempOutputDir : config.get<string>('tempOutputDir', '${workspaceFolder}/.hylo_temp');
-        
+
         // Get working directory - default to ${workspaceFolder}, but allow override via args.cwd
         let workingDirectory: string | undefined;
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        
+
         if (args.cwd) {
             // If cwd provided in launch config, use that (replacing ${workspaceFolder} if needed)
             workingDirectory = args.cwd.replace(/\${workspaceFolder}/g, workspaceFolder?.uri.fsPath || '');
@@ -161,129 +169,67 @@ export class HyloDebugSession extends DebugSession {
             // Otherwise default to workspace folder
             workingDirectory = workspaceFolder.uri.fsPath;
         }
-        
+
         // Replace ${workspaceFolder} with actual workspace folder path in tempOutputDir
         if (tempOutputDir.includes('${workspaceFolder}')) {
             if (workspaceFolder) {
                 tempOutputDir = tempOutputDir.replace('${workspaceFolder}', workspaceFolder.uri.fsPath);
             } else {
-                tempOutputDir = path.join(path.dirname(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath), '.hylo_temp');
+                tempOutputDir = path.join(path.dirname(sourcePath[0]), '.hylo_temp');
             }
         }
-        
+
+        // Normalize tempOutputDir for the current platform
+        tempOutputDir = normalizePath(tempOutputDir);
+
         // Create output directory if it doesn't exist
         if (!fs.existsSync(tempOutputDir)) {
             fs.mkdirSync(tempOutputDir, { recursive: true });
         }
-        
+
         // On Windows, add .exe extension to the output file
-        const isWindows = process.platform === 'win32';
-        const outputExecutableName = isWindows ? `${outputName}.exe` : outputName;
+        const outputExecutableName = isWindows() ? `${outputName}.exe` : outputName;
         const outputPath = path.join(tempOutputDir, outputExecutableName);
-        
+
         // Ensure the output channel is visible
-        outputChannel.show(true);
-        
-        // Prepare source paths for the command
-        const sourcePaths = Array.isArray(sourcePath) ? sourcePath : [sourcePath];
-        
+        debugOutputChannel.show(true);
+
+
         // Build the compiler command components
-        let compilerExecutable: string;
-        let compilerArgs: string[] = [];
-        
+        let executable: string;
+
+        let compileArgs = ['-o', outputPath, ...sourcePath];
         if (useCommandTemplate) {
             // Split the template into executable and args if using a template
             const formattedCommand = commandTemplate
-                .replace('${COMPILER}', compilerPath)
-                .replace('${ARGS}', `-o "${outputPath}" ${sourcePaths.map(p => `"${p}"`).join(' ')}`);
+                .replace('${ARGS}', compileArgs.join(' '));
             
-            // Extract the executable and args from the formatted command
-            // This is a simplistic approach and might not work for complex command templates
-            const parts = formattedCommand.split(' ');
-            compilerExecutable = parts[0].replace(/"/g, '');
-            compilerArgs = parts.slice(1);
+            const commandParts = formattedCommand.split(' '); // todo handle spaces in paths
+
+            compileArgs = commandParts.slice(1);
+            executable = commandParts[0];
         } else {
-            compilerExecutable = compilerPath;
-            compilerArgs = ['-o', outputPath, ...sourcePaths];
+            executable = compilerPath;
         }
-        
+
         // Output the compilation message and command
-        outputChannel.appendLine('Compiling Hylo code...');
-        outputChannel.appendLine(`Running: "${compilerExecutable}" ${compilerArgs.join(' ')}`);
-        if (workingDirectory) {
-            outputChannel.appendLine(`Working directory: ${workingDirectory}`);
-        }
-        
+        debugOutputChannel.appendLine('Compiling Hylo code...');
+
         try {
             // Compile the code and stream output in real-time
-            await this.spawnProcess(compilerExecutable, compilerArgs, workingDirectory);
-            
+            await spawnProcess(executable, compileArgs, debugOutputChannel, workingDirectory);
+
             // If we get here, compilation succeeded, so run the program
-            outputChannel.appendLine(`Running ${outputPath}...`);
-            
+            debugOutputChannel.appendLine(`Running ${outputPath}...`);
+
             // Run the compiled program and stream its output
-            await this.spawnProcess(outputPath, [], workingDirectory);
-            
+            await spawnProcess(outputPath, [], debugOutputChannel, workingDirectory);
+
         } catch (error) {
             // If compilation or execution fails, show the error and stop the process
-            outputChannel.appendLine(`Error: ${error}`);
+            debugOutputChannel.appendLine(`Error: ${error}`);
             throw new Error(`Process failed with error: ${error}`);
         }
-    }
-
-    /**
-     * Spawn a process and return a promise that resolves when the process completes
-     * or rejects if the process fails. Streams output to the output channel.
-     */
-    private spawnProcess(command: string, args: string[], cwd?: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            // Remove quotes from command if present
-            const cleanCommand = command.replace(/^"(.*)"$/, '$1');
-            
-            // Create options object with shell and optional working directory
-            const options = { 
-                shell: true,
-                cwd: cwd 
-            };
-            
-            const proc = spawn(cleanCommand, args, options);
-            
-            proc.stdout.on('data', (data) => {
-                const text = data.toString();
-                if (outputChannel && text.trim()) {
-                    outputChannel.append(text);
-                }
-                this.sendEvent(new OutputEvent(text, 'stdout'));
-            });
-            
-            proc.stderr.on('data', (data) => {
-                const text = data.toString();
-                if (outputChannel && text.trim()) {
-                    outputChannel.append(text);
-                }
-                this.sendEvent(new OutputEvent(text, 'stderr'));
-            });
-            
-            proc.on('error', (err) => {
-                const errorMessage = `Failed to start process: ${err.message}`;
-                if (outputChannel) {
-                    outputChannel.appendLine(errorMessage);
-                }
-                reject(errorMessage);
-            });
-            
-            proc.on('close', (code) => {
-                if (code !== 0) {
-                    const errorMessage = `Process exited with code ${code}`;
-                    if (outputChannel) {
-                        outputChannel.appendLine(errorMessage);
-                    }
-                    reject(errorMessage);
-                } else {
-                    resolve();
-                }
-            });
-        });
     }
 }
 
@@ -292,10 +238,10 @@ export function createHyloDebugAdapterDescriptorFactory(): vscode.DebugAdapterDe
     return {
         createDebugAdapterDescriptor(session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
             // Create the output channel if it doesn't exist
-            if (!outputChannel) {
-                outputChannel = vscode.window.createOutputChannel('Hylo Debug');
+            if (!debugOutputChannel) {
+                debugOutputChannel = vscode.window.createOutputChannel('Hylo Debug');
             }
-            
+
             return new vscode.DebugAdapterInlineImplementation(new HyloDebugSession());
         }
     };
@@ -303,8 +249,8 @@ export function createHyloDebugAdapterDescriptorFactory(): vscode.DebugAdapterDe
 
 // Export the output channel for use in extension.ts
 export function getOutputChannel(): vscode.OutputChannel {
-    if (!outputChannel) {
-        outputChannel = vscode.window.createOutputChannel('Hylo Debug');
+    if (!debugOutputChannel) {
+        debugOutputChannel = vscode.window.createOutputChannel('Hylo Debug');
     }
-    return outputChannel;
+    return debugOutputChannel;
 }
