@@ -46,6 +46,19 @@ const extensionConfig = {
   }
 };
 
+/** @type WebpackConfig */
+const debugAdapterConfig = {
+  ...baseConfig,
+  target: 'node',
+  entry: './src/debug/hyloDebug.ts',
+  externals: ['vscode'],
+  output: {
+    path: path.resolve(__dirname, 'out'),
+    filename: 'hyloDebug.js',
+    libraryTarget: 'commonjs2'
+  }
+};
+
 // Config for webview source code (to be run in a web-based context)
 /** @type WebpackConfig */
 const webviewConfig = {
@@ -61,4 +74,4 @@ const webviewConfig = {
   }
 };
 
-module.exports = [extensionConfig, webviewConfig];
+module.exports = [extensionConfig, debugAdapterConfig, webviewConfig];

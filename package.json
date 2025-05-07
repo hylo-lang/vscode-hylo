@@ -71,6 +71,176 @@
           "icon": "./icons/colored-light.png"
         }
       ]
+    },
+    "commands": [
+      {
+        "command": "hylo.runCurrentFile",
+        "title": "Hylo: Run Current File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "hylo.compileAndRunFolder",
+        "title": "Hylo: Compile and Run Folder",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "hylo.startDebugging",
+        "title": "Hylo: Debug Current File",
+        "icon": "$(debug-alt)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == hylo",
+          "command": "hylo.runCurrentFile",
+          "group": "hylo"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceLangId == hylo",
+          "command": "hylo.runCurrentFile",
+          "group": "hylo"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "hylo.compileAndRunFolder",
+          "group": "hylo"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "when": "resourceLangId == hylo",
+          "command": "hylo.runCurrentFile",
+          "group": "navigation@1"
+        },
+        {
+          "when": "resourceLangId == hylo",
+          "command": "hylo.startDebugging",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "debuggers": [
+      {
+        "type": "hylo",
+        "label": "Hylo Run",
+        "program": "./out/hyloDebug.js",
+        "runtime": "node",
+        "languages": [
+          "hylo"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to a Hylo file or folder.",
+                "default": "${file}"
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for running the program",
+                "default": "${workspaceFolder}"
+              },
+              "compilerPath": {
+                "type": "string",
+                "description": "Path to the Hylo compiler executable.",
+                "default": "${config:hylo.compilerPath}"
+              },
+              "useCommandTemplate": {
+                "type": "boolean",
+                "description": "Use command template instead of direct compiler path",
+                "default": "${config:hylo.useCommandTemplate}"
+              },
+              "commandTemplate": {
+                "type": "string",
+                "description": "Template for the Hylo compiler command",
+                "default": "${config:hylo.commandTemplate}"
+              },
+              "tempOutputDir": {
+                "type": "string",
+                "description": "Directory to store compiled outputs",
+                "default": "${config:hylo.tempOutputDir}"
+              },
+              "isFolder": {
+                "type": "boolean",
+                "description": "Whether to compile all .hylo files in the folder",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "hylo",
+            "request": "launch",
+            "name": "Run Hylo File",
+            "program": "${file}",
+            "isFolder": false
+          },
+          {
+            "type": "hylo",
+            "request": "launch",
+            "name": "Run Hylo Folder",
+            "program": "${fileDirname}",
+            "isFolder": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Hylo: Run File",
+            "description": "Run a single Hylo file",
+            "body": {
+              "type": "hylo",
+              "request": "launch",
+              "name": "Run ${1:${TM_FILENAME}}",
+              "program": "${file}",
+              "isFolder": false
+            }
+          },
+          {
+            "label": "Hylo: Run Folder",
+            "description": "Run all .hylo files in a folder",
+            "body": {
+              "type": "hylo",
+              "request": "launch",
+              "name": "Run folder ${1:${TM_DIRECTORY}}",
+              "program": "${fileDirname}",
+              "isFolder": true
+            }
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Hylo",
+      "properties": {
+        "hylo.compilerPath": {
+          "type": "string",
+          "default": "hc",
+          "description": "Path to the Hylo compiler executable."
+        },
+        "hylo.useCommandTemplate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Toggle between using the command template or direct compiler path. When enabled, the command template will be used instead of the direct compiler path."
+        },
+        "hylo.commandTemplate": {
+          "type": "string",
+          "default": "${COMPILER} ${ARGS}",
+          "description": "Template for the Hylo compiler command. Use ${COMPILER} for the compiler path and ${ARGS} for arguments."
+        },
+        "hylo.tempOutputDir": {
+          "type": "string",
+          "default": "${workspaceFolder}/.hylo_temp",
+          "description": "Directory to store compiled Hylo outputs. Use ${workspaceFolder} for the current workspace folder."
+        }
+      }
     }
   },
   "scripts": {
@@ -100,6 +270,8 @@
   },
   "dependencies": {
     "@vscode-elements/elements": "^1.9.0",
-    "@vscode/codicons": "^0.0.36"
+    "@vscode/codicons": "^0.0.36",
+    "@vscode/debugadapter": "^1.68.0",
+    "@vscode/debugprotocol": "^1.68.0"
   }
 }
