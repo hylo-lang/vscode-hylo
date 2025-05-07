@@ -3,21 +3,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ASTExplorerViewProvider } from './ast-explorer-view';
-import { createHyloDebugAdapterDescriptorFactory, getOutputChannel } from './debug/hyloDebug';
-import { spawn } from 'child_process';
+import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
+import { isWindows, normalizePath, getHyloOutputChannel, spawnProcess } from './util/shared';
 
 let highlightDecorationType: vscode.TextEditorDecorationType;
 let lastPositionDecoration: vscode.DecorationOptions[] = [];
-
-// OUTPUT channel management for both regular commands and debug sessions
-let hyloOutputChannel: vscode.OutputChannel | undefined;
-
-export function getOrCreateHyloOutputChannel(): vscode.OutputChannel {
-  if (!hyloOutputChannel) {
-    hyloOutputChannel = vscode.window.createOutputChannel('Hylo');
-  }
-  return hyloOutputChannel;
-}
 
 export function activate(context: vscode.ExtensionContext) {
   highlightDecorationType = vscode.window.createTextEditorDecorationType({
@@ -75,19 +65,23 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.debug.registerDebugAdapterDescriptorFactory('hylo', createHyloDebugAdapterDescriptorFactory())
   );
 
+  // Register the symbol provider
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSymbolProvider(
+      { scheme: 'file', language: 'hylo' },
+      new HyloSymbolProvider()
+    )
+  );
+
   // Export the output channel management function for use elsewhere
   return {
-    getOrCreateHyloOutputChannel
+    getHyloOutputChannel
   };
 }
 
 export function deactivate() {
   if (highlightDecorationType) {
     highlightDecorationType.dispose();
-  }
-  
-  if (hyloOutputChannel) {
-    hyloOutputChannel.dispose();
   }
 }
 
@@ -166,7 +160,7 @@ async function compileAndRunFolder(folderUri?: vscode.Uri) {
  */
 async function findHyloFiles(directoryPath: string): Promise<string[]> {
   const hyloFiles: string[] = [];
-  const outputChannel = getOrCreateHyloOutputChannel();
+  const outputChannel = getHyloOutputChannel();
   
   // Read all files in the directory
   try {
@@ -195,62 +189,13 @@ async function findHyloFiles(directoryPath: string): Promise<string[]> {
 }
 
 /**
- * Spawn a process and return a promise that resolves when the process completes
- * or rejects if the process fails. Streams output to the output channel.
- */
-function spawnProcess(command: string, args: string[], outputChannel: vscode.OutputChannel, cwd?: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Remove quotes from command if present
-    const cleanCommand = command.replace(/^"(.*)"$/, '$1');
-    
-    // Use provided working directory or current directory
-    const options = { 
-      shell: true,
-      cwd: cwd
-    };
-    
-    const proc = spawn(cleanCommand, args, options);
-    
-    proc.stdout.on('data', (data) => {
-      const text = data.toString();
-      if (text.trim()) {
-        outputChannel.append(text);
-      }
-    });
-    
-    proc.stderr.on('data', (data) => {
-      const text = data.toString();
-      if (text.trim()) {
-        outputChannel.append(text);
-      }
-    });
-    
-    proc.on('error', (err) => {
-      const errorMessage = `Failed to start process: ${err.message}`;
-      outputChannel.appendLine(errorMessage);
-      reject(errorMessage);
-    });
-    
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        const errorMessage = `Process exited with code ${code}`;
-        outputChannel.appendLine(errorMessage);
-        reject(errorMessage);
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-/**
  * Compile and run Hylo code with real-time output streaming
  * @param sourcePath Path to the source file or array of file paths
  * @param outputName Name for the output executable
  */
 async function compileAndRunHylo(sourcePath: string | string[], outputName: string) {
   // Get or create output channel and show it
-  const outputChannel = getOrCreateHyloOutputChannel();
+  const outputChannel = getHyloOutputChannel();
   outputChannel.clear();
   outputChannel.show(true);
   
@@ -264,7 +209,7 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
   let workingDirectory: string | undefined;
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (workspaceFolder) {
-    workingDirectory = workspaceFolder.uri.fsPath;
+    workingDirectory = normalizePath(workspaceFolder.uri.fsPath);
   }
   
   // Get or create temp output directory
@@ -273,7 +218,7 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
   // Replace ${workspaceFolder} with actual workspace folder path
   if (tempOutputDir.includes('${workspaceFolder}')) {
     if (workspaceFolder) {
-      tempOutputDir = tempOutputDir.replace('${workspaceFolder}', workspaceFolder.uri.fsPath);
+      tempOutputDir = tempOutputDir.replace('${workspaceFolder}', normalizePath(workspaceFolder.uri.fsPath));
     } else {
       tempOutputDir = path.join(path.dirname(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath), '.hylo_temp');
     }
@@ -285,8 +230,7 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
   }
   
   // On Windows, add .exe extension to the output file
-  const isWindows = process.platform === 'win32';
-  const outputExecutableName = isWindows ? `${outputName}.exe` : outputName;
+  const outputExecutableName = isWindows() ? `${outputName}.exe` : outputName;
   const outputPath = path.join(tempOutputDir, outputExecutableName);
   
   // Prepare source paths for the command
@@ -299,29 +243,23 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
   if (useCommandTemplate) {
     // Split the template into executable and args if using a template
     const formattedCommand = commandTemplate
-      .replace('${COMPILER}', compilerPath)
       .replace('${ARGS}', `-o "${outputPath}" ${sourcePaths.map(p => `"${p}"`).join(' ')}`);
     
     // Extract the executable and args from the formatted command
-    // This is a simplistic approach and might not work for complex command templates
     const parts = formattedCommand.split(' ');
     compilerExecutable = parts[0].replace(/"/g, '');
     compilerArgs = parts.slice(1);
   } else {
     compilerExecutable = compilerPath;
-    compilerArgs = ['-o', outputPath, ...sourcePaths];
+    compilerArgs = ['-o', outputPath, ...sourcePaths.map(normalizePath)];
   }
   
   // Output the compilation message and command
   outputChannel.appendLine('Compiling Hylo code...');
-  outputChannel.appendLine(`Running: "${compilerExecutable}" ${compilerArgs.join(' ')}`);
-  if (workingDirectory) {
-    outputChannel.appendLine(`Working directory: ${workingDirectory}`);
-  }
   
   try {
     // Compile the code and stream output in real-time
-    await spawnProcess(compilerExecutable, compilerArgs, outputChannel, workingDirectory);
+    await spawnProcess(normalizePath(compilerExecutable), compilerArgs, outputChannel, workingDirectory);
     
     // If we get here, compilation succeeded, so run the program
     outputChannel.appendLine(`Running ${outputPath}...`);
@@ -333,13 +271,6 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
     outputChannel.appendLine(`Error: ${error}`);
     throw new Error(`Process failed with error: ${error}`);
   }
-}
-
-function range(l1: number, c1: number, l2: number, c2: number) {
-  return new vscode.Range(
-    new vscode.Position(l1, c1),
-    new vscode.Position(l2, c2)
-  );
 }
 
 /**
@@ -386,6 +317,13 @@ async function startDebugging() {
   }
 }
 
+function range(l1: number, c1: number, l2: number, c2: number) {
+  return new vscode.Range(
+    new vscode.Position(l1, c1),
+    new vscode.Position(l2, c2)
+  );
+}
+
 function node(
   title: string,
   details: string,
@@ -413,6 +351,7 @@ function parameter(name: string, r: vscode.Range, defaultValue?: string) {
       : []
   );
 }
+
 class HyloSymbolProvider implements vscode.DocumentSymbolProvider {
   provideDocumentSymbols(
     document: vscode.TextDocument,
@@ -432,8 +371,3 @@ class HyloSymbolProvider implements vscode.DocumentSymbolProvider {
     ];
   }
 }
-
-vscode.languages.registerDocumentSymbolProvider(
-  { scheme: 'file', language: 'hylo' },
-  new HyloSymbolProvider()
-);
