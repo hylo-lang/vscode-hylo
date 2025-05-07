@@ -3,7 +3,7 @@
   "displayName": "Hylo",
   "description": "VSCode extension for Hylo language",
   "icon": "icons/colored-dark.png",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -222,7 +222,7 @@
         "hylo.compilerPath": {
           "type": "string",
           "default": "hc",
-          "description": "Path to the Hylo compiler executable."
+          "description": "Path to the Hylo compiler executable. Uncheck \"Use Command Template\" to use this path directly."
         },
         "hylo.useCommandTemplate": {
           "type": "boolean",
@@ -232,7 +232,7 @@
         "hylo.commandTemplate": {
           "type": "string",
           "default": "swift run hc ${ARGS}",
-          "description": "Template for the Hylo compiler command. Use ${COMPILER} for the compiler path and ${ARGS} for arguments."
+          "description": "Template for the Hylo compiler command. Use the ${ARGS} for arguments we want to pass to hc."
         },
         "hylo.tempOutputDir": {
           "type": "string",
