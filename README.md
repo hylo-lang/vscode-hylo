@@ -79,7 +79,7 @@ For more complex projects with multiple Hylo files:
 
 1. Organize your files into folders
 2. Right-click on a folder → "Hylo: Compile and Run Folder"
-3. Or set up a launch configuration for consistent debugging:
+3. Or set up a launch configuration for better ergonomics (run via F5):
    ```json
    {
      "type": "hylo",
