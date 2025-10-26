@@ -1,4 +1,4 @@
-Note, the Hylo compiler is in an early phase of development, so expect things to break. If you noitce issues, please submit either for the [Hylo compiler](https://github.com/hylo-lang/hylo/issues) or for the [VSCode extension](https://github.com/hylo-lang/vscode-hylo). if it's a known issue by searching for it.
+Note, the Hylo compiler is in an early phase of development, so expect things to break. If you notice issues, please submit them either for the [Hylo compiler](https://github.com/hylo-lang/hylo/issues) or for the [VSCode extension](https://github.com/hylo-lang/vscode-hylo).
 
 If you want to get involved with developing Hylo, please reach out via [Slack](https://join.slack.com/t/val-qs97696/shared_invite/zt-1z3dsblrq-y4qXfEE6wr6uMEJSN9uFyg). 
 
