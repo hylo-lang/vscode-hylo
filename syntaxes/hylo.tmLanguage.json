@@ -201,7 +201,7 @@
         },
         {
           "name": "keyword.control.loop.hylo",
-          "match": "\\b(while|for|do|in)\\b"
+          "match": "\\b(while|for|do|unroll|in)\\b"
         },
         {
           "name": "keyword.control.conditional.hylo",
