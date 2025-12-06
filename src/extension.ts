@@ -4,7 +4,12 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ASTExplorerViewProvider } from './ast-explorer-view';
 import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
-import { isWindows, normalizePath, getHyloOutputChannel, spawnProcess } from './util/shared';
+import {
+  isWindows,
+  normalizePath,
+  getHyloOutputChannel,
+  spawnProcess
+} from './util/shared';
 
 let highlightDecorationType: vscode.TextEditorDecorationType;
 let lastPositionDecoration: vscode.DecorationOptions[] = [];
@@ -56,13 +61,19 @@ export function activate(context: vscode.ExtensionContext) {
   // Register commands for Hylo file execution and compilation
   context.subscriptions.push(
     vscode.commands.registerCommand('hylo.runCurrentFile', runCurrentFile),
-    vscode.commands.registerCommand('hylo.compileAndRunFolder', compileAndRunFolder),
+    vscode.commands.registerCommand(
+      'hylo.compileAndRunFolder',
+      compileAndRunFolder
+    ),
     vscode.commands.registerCommand('hylo.startDebugging', startDebugging)
   );
 
   // Register the debug adapter factory
   context.subscriptions.push(
-    vscode.debug.registerDebugAdapterDescriptorFactory('hylo', createHyloDebugAdapterDescriptorFactory())
+    vscode.debug.registerDebugAdapterDescriptorFactory(
+      'hylo',
+      createHyloDebugAdapterDescriptorFactory()
+    )
   );
 
   // Register the symbol provider
@@ -118,7 +129,7 @@ async function runCurrentFile() {
  */
 async function compileAndRunFolder(folderUri?: vscode.Uri) {
   let folderPath: string;
-  
+
   if (folderUri) {
     // Use the provided folder URI directly (from context menu)
     folderPath = folderUri.fsPath;
@@ -143,15 +154,19 @@ async function compileAndRunFolder(folderUri?: vscode.Uri) {
   try {
     // Find all Hylo files in the folder
     const hyloFiles = await findHyloFiles(folderPath);
-    
+
     if (hyloFiles.length === 0) {
-      vscode.window.showWarningMessage('No Hylo files found in the selected folder');
+      vscode.window.showWarningMessage(
+        'No Hylo files found in the selected folder'
+      );
       return;
     }
 
     await compileAndRunHylo(hyloFiles, folderName);
   } catch (error) {
-    vscode.window.showErrorMessage(`Failed to compile and run folder: ${error}`);
+    vscode.window.showErrorMessage(
+      `Failed to compile and run folder: ${error}`
+    );
   }
 }
 
@@ -161,15 +176,15 @@ async function compileAndRunFolder(folderUri?: vscode.Uri) {
 async function findHyloFiles(directoryPath: string): Promise<string[]> {
   const hyloFiles: string[] = [];
   const outputChannel = getHyloOutputChannel();
-  
+
   // Read all files in the directory
   try {
     const files = fs.readdirSync(directoryPath);
-    
+
     for (const file of files) {
       const filePath = path.join(directoryPath, file);
       const stat = fs.statSync(filePath);
-      
+
       if (stat.isDirectory()) {
         // Recursively search subdirectories
         const subDirFiles = await findHyloFiles(filePath);
@@ -184,7 +199,7 @@ async function findHyloFiles(directoryPath: string): Promise<string[]> {
     outputChannel.appendLine(`Error reading directory: ${errorMessage}`);
     throw error;
   }
-  
+
   return hyloFiles;
 }
 
@@ -193,58 +208,75 @@ async function findHyloFiles(directoryPath: string): Promise<string[]> {
  * @param sourcePath Path to the source file or array of file paths
  * @param outputName Name for the output executable
  */
-async function compileAndRunHylo(sourcePath: string | string[], outputName: string) {
+async function compileAndRunHylo(
+  sourcePath: string | string[],
+  outputName: string
+) {
   // Get or create output channel and show it
   const outputChannel = getHyloOutputChannel();
   outputChannel.clear();
   outputChannel.show(true);
-  
+
   // Get extension configuration
   const config = vscode.workspace.getConfiguration('hylo');
   const compilerPath = config.get<string>('compilerPath', 'hc');
   const useCommandTemplate = config.get<boolean>('useCommandTemplate', false);
-  const commandTemplate = config.get<string>('commandTemplate', 'swift run hc ${ARGS}');
-  
+  const commandTemplate = config.get<string>(
+    'commandTemplate',
+    'swift run hc ${ARGS}'
+  );
+
   // Default working directory to workspace folder
   let workingDirectory: string | undefined;
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (workspaceFolder) {
     workingDirectory = normalizePath(workspaceFolder.uri.fsPath);
   }
-  
+
   // Get or create temp output directory
-  let tempOutputDir = config.get<string>('tempOutputDir', '${workspaceFolder}/.hylo_temp');
-  
+  let tempOutputDir = config.get<string>(
+    'tempOutputDir',
+    '${workspaceFolder}/.hylo_temp'
+  );
+
   // Replace ${workspaceFolder} with actual workspace folder path
   if (tempOutputDir.includes('${workspaceFolder}')) {
     if (workspaceFolder) {
-      tempOutputDir = tempOutputDir.replace('${workspaceFolder}', normalizePath(workspaceFolder.uri.fsPath));
+      tempOutputDir = tempOutputDir.replace(
+        '${workspaceFolder}',
+        normalizePath(workspaceFolder.uri.fsPath)
+      );
     } else {
-      tempOutputDir = path.join(path.dirname(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath), '.hylo_temp');
+      tempOutputDir = path.join(
+        path.dirname(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath),
+        '.hylo_temp'
+      );
     }
   }
-  
+
   // Create output directory if it doesn't exist
   if (!fs.existsSync(tempOutputDir)) {
     fs.mkdirSync(tempOutputDir, { recursive: true });
   }
-  
+
   // On Windows, add .exe extension to the output file
   const outputExecutableName = isWindows() ? `${outputName}.exe` : outputName;
   const outputPath = path.join(tempOutputDir, outputExecutableName);
-  
+
   // Prepare source paths for the command
   const sourcePaths = Array.isArray(sourcePath) ? sourcePath : [sourcePath];
-  
+
   // Build the compiler command components
   let compilerExecutable: string;
   let compilerArgs: string[] = [];
-  
+
   if (useCommandTemplate) {
     // Split the template into executable and args if using a template
-    const formattedCommand = commandTemplate
-      .replace('${ARGS}', `-o "${outputPath}" ${sourcePaths.map(p => `"${p}"`).join(' ')}`);
-    
+    const formattedCommand = commandTemplate.replace(
+      '${ARGS}',
+      `-o "${outputPath}" ${sourcePaths.map((p) => `"${p}"`).join(' ')}`
+    );
+
     // Extract the executable and args from the formatted command
     const parts = formattedCommand.split(' ');
     compilerExecutable = parts[0].replace(/"/g, '');
@@ -253,17 +285,22 @@ async function compileAndRunHylo(sourcePath: string | string[], outputName: stri
     compilerExecutable = compilerPath;
     compilerArgs = ['-o', outputPath, ...sourcePaths.map(normalizePath)];
   }
-  
+
   // Output the compilation message and command
   outputChannel.appendLine('Compiling Hylo code...');
-  
+
   try {
     // Compile the code and stream output in real-time
-    await spawnProcess(normalizePath(compilerExecutable), compilerArgs, outputChannel, workingDirectory);
-    
+    await spawnProcess(
+      normalizePath(compilerExecutable),
+      compilerArgs,
+      outputChannel,
+      workingDirectory
+    );
+
     // If we get here, compilation succeeded, so run the program
     outputChannel.appendLine(`Running ${outputPath}...`);
-    
+
     // Run the compiled program and stream its output
     await spawnProcess(outputPath, [], outputChannel, workingDirectory);
   } catch (error) {
@@ -290,15 +327,17 @@ async function startDebugging() {
   }
 
   const filePath = document.uri.fsPath;
-  
+
   // Save the document if it has unsaved changes
   if (document.isDirty) {
     await document.save();
   }
-  
+
   // Get workspace folder as default cwd
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workingDirectory = workspaceFolder ? workspaceFolder.uri.fsPath : undefined;
+  const workingDirectory = workspaceFolder
+    ? workspaceFolder.uri.fsPath
+    : undefined;
 
   // Start debugging with the Hylo debug configuration
   const debugConfig = {
@@ -307,7 +346,7 @@ async function startDebugging() {
     name: 'Debug Hylo File',
     program: filePath,
     isFolder: false,
-    cwd: workingDirectory  // Add workspace folder as default working directory
+    cwd: workingDirectory // Add workspace folder as default working directory
   };
 
   try {

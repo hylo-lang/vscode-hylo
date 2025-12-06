@@ -2,7 +2,10 @@
 
 // import { VscodeTextfield, VscodeTree } from '@vscode-elements/elements';
 import { VscodeTextfield, VscodeTree } from '@vscode-elements/elements';
-import { TreeItem, TreeItemIconConfig } from '@vscode-elements/elements/dist/vscode-tree/vscode-tree';
+import {
+  TreeItem,
+  TreeItemIconConfig
+} from '@vscode-elements/elements/dist/vscode-tree/vscode-tree';
 
 import { vscode } from './vscode';
 import {
