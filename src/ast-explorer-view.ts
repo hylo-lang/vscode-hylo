@@ -7,8 +7,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 
   private view?: vscode.WebviewView;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {
-  }
+  constructor(private readonly _extensionUri: vscode.Uri) {}
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,

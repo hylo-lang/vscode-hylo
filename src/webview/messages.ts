@@ -8,8 +8,7 @@ export interface OpenFileMessage extends TypedMessage<'openSourceFile'> {
   fileUrl: string;
 }
 
-export interface HighlightFullDeclarationMessage
-  extends TypedMessage<'highlightFullDeclaration'> {
+export interface HighlightFullDeclarationMessage extends TypedMessage<'highlightFullDeclaration'> {
   range: SourceRange;
 }
 export type MessageFromFrontend =

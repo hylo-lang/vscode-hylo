@@ -1,6 +1,7 @@
 # Contributing
 
 ## Development
+
 ```
 npm i
 ```
