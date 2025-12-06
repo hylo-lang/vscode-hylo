@@ -26,6 +26,14 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "configurationDefaults": {
+      "[hylo]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "editor.semanticTokenColorCustomizations": {
+        "enabled": true
+      }
+    },
     "languages": [
       {
         "id": "hylo",
@@ -39,6 +47,31 @@
         "icon": {
           "light": "./icons/colored-light.png",
           "dark": "./icons/colored-dark.png"
+        }
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "punctuation",
+        "description": "Punctuation symbols"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "scopes": {
+          "punctuation": [
+            "punctuation"
+          ],
+          "punctuation.curlybrace": [
+            "punctuation.curlybrace"
+          ],
+          "foo": [
+            "punctuation.curlybrace.close.cs",
+            "source.cs"
+          ],
+          "type.modification": [
+            "storage.modifier"
+          ]
         }
       }
     ],
@@ -86,6 +119,14 @@
         "command": "hylo.startDebugging",
         "title": "Hylo: Debug Current File",
         "icon": "$(debug-alt)"
+      },
+      {
+        "command": "hylo.restartLanguageServer",
+        "title": "Hylo: Restart Language Server"
+      },
+      {
+        "command": "hylo.updateLanguageServerVersion",
+        "title": "Hylo: Update Language Server Version"
       }
     ],
     "menus": {
