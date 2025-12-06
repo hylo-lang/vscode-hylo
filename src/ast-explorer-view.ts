@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { SourceRange } from './webview/types';
 import { MessageFromFrontend } from './webview/messages';
 
 export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
@@ -11,8 +10,8 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    context: vscode.WebviewViewResolveContext,
-    token: vscode.CancellationToken
+    _context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken
   ) {
     this.view = webviewView;
 
@@ -34,11 +33,6 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
             preserveFocus: true
           });
           break;
-        case 'highlightFullDeclaration':
-          console.log('highlightFullDeclaration', data.range);
-          vscode.window.showTextDocument(vscode.Uri.parse(data.range.fileUrl), {
-            selection: toVscodeRange(data.range)
-          });
       }
     });
   }
@@ -99,15 +93,6 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 			</body>
 			</html>`;
   }
-}
-
-function toVscodeRange(range: SourceRange): vscode.Range {
-  return new vscode.Range(
-    range.start.line - 1,
-    range.start.column - 1,
-    range.end.line - 1,
-    range.end.column - 1
-  );
 }
 
 export function getNonce() {

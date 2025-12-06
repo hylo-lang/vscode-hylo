@@ -1,19 +1,14 @@
-import * as vscode from 'vscode';
 import {
   DebugSession,
   InitializedEvent,
-  TerminatedEvent,
-  OutputEvent
+  OutputEvent,
+  TerminatedEvent
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import * as path from 'path';
 import * as fs from 'fs';
-import {
-  isWindows,
-  normalizePath,
-  getHyloOutputChannel,
-  spawnProcess
-} from '../util/shared';
+import * as path from 'path';
+import * as vscode from 'vscode';
+import { isWindows, normalizePath, spawnProcess } from '../util/shared';
 
 // Output channel reference for debug sessions
 let debugOutputChannel: vscode.OutputChannel | undefined;
@@ -42,7 +37,7 @@ export class HyloDebugSession extends DebugSession {
    */
   protected initializeRequest(
     response: DebugProtocol.InitializeResponse,
-    args: DebugProtocol.InitializeRequestArguments
+    _args: DebugProtocol.InitializeRequestArguments
   ): void {
     // This debug adapter provides these features
     response.body = response.body || {};
@@ -226,7 +221,7 @@ export class HyloDebugSession extends DebugSession {
           workspaceFolder.uri.fsPath
         );
       } else {
-        tempOutputDir = path.join(path.dirname(sourcePath[0]), '.hylo_temp');
+        tempOutputDir = path.join(path.dirname(sourcePath[0]!), '.hylo_temp');
       }
     }
 
@@ -293,7 +288,7 @@ export class HyloDebugSession extends DebugSession {
 export function createHyloDebugAdapterDescriptorFactory(): vscode.DebugAdapterDescriptorFactory {
   return {
     createDebugAdapterDescriptor(
-      session: vscode.DebugSession
+      _session: vscode.DebugSession
     ): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
       // Create the output channel if it doesn't exist
       if (!debugOutputChannel) {

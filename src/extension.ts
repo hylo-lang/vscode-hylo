@@ -5,48 +5,13 @@ import * as fs from 'fs';
 import { ASTExplorerViewProvider } from './ast-explorer-view';
 import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
 import {
+  getHyloOutputChannel,
   isWindows,
   normalizePath,
-  getHyloOutputChannel,
   spawnProcess
 } from './util/shared';
 
-let highlightDecorationType: vscode.TextEditorDecorationType;
-let lastPositionDecoration: vscode.DecorationOptions[] = [];
-
 export function activate(context: vscode.ExtensionContext) {
-  highlightDecorationType = vscode.window.createTextEditorDecorationType({
-    backgroundColor: 'rgba(255, 255, 0, 0.3)',
-    border: '1px solid rgba(255, 255, 0, 0.7)'
-  });
-
-  // Update highlight on cursor movement
-  vscode.window.onDidChangeTextEditorSelection(
-    (event) => {
-      const editor = event.textEditor;
-      const position = editor.selection.active;
-
-      // Create range for ±1 character around cursor
-      const startPos = new vscode.Position(
-        position.line,
-        Math.max(0, position.character - 2)
-      );
-      const endPos = new vscode.Position(position.line, position.character + 2);
-      const range = new vscode.Range(startPos, endPos);
-
-      lastPositionDecoration = [
-        {
-          range: range,
-          hoverMessage: 'Cursor highlight'
-        }
-      ];
-
-      // editor.setDecorations(highlightDecorationType, lastPositionDecoration);
-    },
-    null,
-    context.subscriptions
-  );
-
   const astExplorerViewProvider = new ASTExplorerViewProvider(
     context.extensionUri
   );
@@ -90,11 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
   };
 }
 
-export function deactivate() {
-  if (highlightDecorationType) {
-    highlightDecorationType.dispose();
-  }
-}
+export function deactivate() {}
 
 /**
  * Run the current Hylo file
@@ -146,7 +107,7 @@ async function compileAndRunFolder(folderUri?: vscode.Uri) {
       return;
     }
 
-    folderPath = folderUris[0].fsPath;
+    folderPath = folderUris[0]!.fsPath;
   }
 
   const folderName = path.basename(folderPath);
@@ -203,6 +164,16 @@ async function findHyloFiles(directoryPath: string): Promise<string[]> {
   return hyloFiles;
 }
 
+function required<T>(
+  value: T | undefined,
+  message: string = 'Required value is missing'
+): T {
+  if (value === undefined) {
+    throw new Error(message);
+  }
+  return value;
+}
+
 /**
  * Compile and run Hylo code with real-time output streaming
  * @param sourcePath Path to the source file or array of file paths
@@ -248,7 +219,11 @@ async function compileAndRunHylo(
       );
     } else {
       tempOutputDir = path.join(
-        path.dirname(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath),
+        path.dirname(
+          Array.isArray(sourcePath)
+            ? required(sourcePath[0], 'Source path must be provided.')
+            : sourcePath
+        ),
         '.hylo_temp'
       );
     }
@@ -279,7 +254,12 @@ async function compileAndRunHylo(
 
     // Extract the executable and args from the formatted command
     const parts = formattedCommand.split(' ');
-    compilerExecutable = parts[0].replace(/"/g, '');
+    if (parts.length === 0) {
+      throw new Error(
+        'At least the compiler executable must be specified in the command template.'
+      );
+    }
+    compilerExecutable = parts[0]!.replace(/"/g, '');
     compilerArgs = parts.slice(1);
   } else {
     compilerExecutable = compilerPath;
@@ -393,8 +373,8 @@ function parameter(name: string, r: vscode.Range, defaultValue?: string) {
 
 class HyloSymbolProvider implements vscode.DocumentSymbolProvider {
   provideDocumentSymbols(
-    document: vscode.TextDocument,
-    token: vscode.CancellationToken
+    _document: vscode.TextDocument,
+    _token: vscode.CancellationToken
   ): vscode.DocumentSymbol[] | Thenable<vscode.DocumentSymbol[]> {
     return [
       node('B', 'ProductType', SymbolKind.Class, range(0, 0, 6, 1), [
