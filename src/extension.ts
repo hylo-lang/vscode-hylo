@@ -1,9 +1,23 @@
-import { SymbolKind } from 'vscode';
-import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as vscode from 'vscode';
+import { commands, debug, ExtensionContext, workspace } from 'vscode';
+import {
+  Executable,
+  LanguageClient,
+  LanguageClientOptions,
+  RevealOutputChannelOn,
+  ServerOptions,
+  Trace,
+  TransportKind
+} from 'vscode-languageclient/node';
 import { ASTExplorerViewProvider } from './ast-explorer-view';
 import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
+import {
+  getInstalledVersion,
+  languageServerExecutableFilename,
+  updateLanguageServer
+} from './lsp/download-language-server';
 import {
   getHyloOutputChannel,
   isWindows,
@@ -11,7 +25,101 @@ import {
   spawnProcess
 } from './util/shared';
 
-export function activate(context: vscode.ExtensionContext) {
+let globalClient: LanguageClient | null = null;
+
+async function activateBackend(
+  context: ExtensionContext
+): Promise<LanguageClient> {
+  process.chdir(context.extensionPath);
+  let outputChannel = getHyloOutputChannel();
+
+  outputChannel.appendLine(
+    `Working directory: ${process.cwd()}, activeDebugSession: ${debug.activeDebugSession}, __filename: ${__filename}`
+  );
+
+  let serverExe = `${context.extensionPath}/dist/bin/${languageServerExecutableFilename()}`;
+
+  let hyloRoot: string | undefined = undefined;
+  let env = process.env;
+
+  env['HYLO_STDLIB_PATH'] = `${context.extensionPath}/dist/hylo-stdlib`;
+
+  let installedVersion = getInstalledVersion();
+  if (!installedVersion) {
+    throw new Error('Language server is not installed.');
+  }
+  let transport = installedVersion.isDev
+    ? TransportKind.pipe
+    : TransportKind.stdio;
+
+  outputChannel.appendLine(
+    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transport}`
+  );
+
+  let executable: Executable = {
+    command: serverExe,
+    args: [],
+    transport: transport,
+    options: {
+      cwd: context.extensionPath,
+      env: env
+    }
+  };
+
+  // If the extension is launched in debug mode then the debug server options are used
+  // Otherwise the run options are used
+  let serverOptions: ServerOptions = {
+    run: executable,
+    debug: executable
+  };
+
+  // Options to control the language client
+  let clientOptions: LanguageClientOptions = {
+    // Register the server for plain text documents
+    documentSelector: [
+      // { scheme: 'file', language: 'hylo' }
+      { pattern: '**/*.hylo' }
+    ],
+    synchronize: {
+      // Synchronize the setting section 'languageServerExample' to the server
+      configurationSection: 'hylo',
+      fileEvents: workspace.createFileSystemWatcher('**/*.hylo')
+    },
+
+    outputChannel: outputChannel,
+    revealOutputChannelOn: RevealOutputChannelOn.Info
+  };
+
+  // Create the language client and start the client.
+  let forceDebug = false;
+  let client = new LanguageClient(
+    'hylo',
+    'Hylo LSP Extension',
+    serverOptions,
+    clientOptions,
+    forceDebug
+  );
+  client.registerProposedFeatures();
+  client.setTrace(Trace.Messages);
+
+  client
+    .start()
+    .catch((reason) => {
+      outputChannel.appendLine(`Client error: ${reason}`);
+    })
+    .finally(() => {
+      outputChannel.appendLine(`Client finally`);
+    });
+
+  return client;
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+  let output = getHyloOutputChannel();
+  output.appendLine(
+    `Activating Hylo extension in directory ${context.extensionPath}`
+  );
+
   const astExplorerViewProvider = new ASTExplorerViewProvider(
     context.extensionUri
   );
@@ -41,13 +149,15 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Register the symbol provider
-  context.subscriptions.push(
-    vscode.languages.registerDocumentSymbolProvider(
-      { scheme: 'file', language: 'hylo' },
-      new HyloSymbolProvider()
-    )
-  );
+  globalClient = await activateBackend(context);
+
+  commands.registerCommand('hylo.updateLanguageServer', async () => {
+    await updateLanguageServer(true);
+  });
+
+  commands.registerCommand('hylo.restartLanguageServer', async () => {
+    await globalClient?.restart();
+  });
 
   // Export the output channel management function for use elsewhere
   return {
@@ -55,7 +165,11 @@ export function activate(context: vscode.ExtensionContext) {
   };
 }
 
-export function deactivate() {}
+export async function deactivate() {
+  if (globalClient) {
+    await globalClient.stop();
+  }
+}
 
 /**
  * Run the current Hylo file
@@ -333,60 +447,5 @@ async function startDebugging() {
     await vscode.debug.startDebugging(undefined, debugConfig);
   } catch (error) {
     vscode.window.showErrorMessage(`Failed to start debugging: ${error}`);
-  }
-}
-
-function range(l1: number, c1: number, l2: number, c2: number) {
-  return new vscode.Range(
-    new vscode.Position(l1, c1),
-    new vscode.Position(l2, c2)
-  );
-}
-
-function node(
-  title: string,
-  details: string,
-  symbolKind: SymbolKind,
-  r: vscode.Range,
-  children: vscode.DocumentSymbol[]
-) {
-  const n = new vscode.DocumentSymbol(title, details, symbolKind, r, r);
-  n.children = children;
-  return n;
-}
-
-function parameter(name: string, r: vscode.Range, defaultValue?: string) {
-  return node(
-    name,
-    'Parameter',
-    SymbolKind.Variable,
-    r,
-    defaultValue
-      ? [
-          node('default value', '', SymbolKind.Property, r, [
-            node(defaultValue, '', SymbolKind.String, r, [])
-          ])
-        ]
-      : []
-  );
-}
-
-class HyloSymbolProvider implements vscode.DocumentSymbolProvider {
-  provideDocumentSymbols(
-    _document: vscode.TextDocument,
-    _token: vscode.CancellationToken
-  ): vscode.DocumentSymbol[] | Thenable<vscode.DocumentSymbol[]> {
-    return [
-      node('B', 'ProductType', SymbolKind.Class, range(0, 0, 6, 1), [
-        node('a', 'Binding', SymbolKind.Field, range(2, 4, 2, 21), []),
-        node('b', 'Binding', SymbolKind.Field, range(5, 4, 5, 21), [])
-      ]),
-      node('asd', 'Function', SymbolKind.Function, range(8, 0, 10, 1), [
-        node('parameters', '', SymbolKind.Property, range(0, 3, 1, 1), [
-          parameter('a', range(8, 8, 8, 18)),
-          parameter('b', range(8, 20, 8, 31), '12')
-        ])
-      ])
-    ];
   }
 }
