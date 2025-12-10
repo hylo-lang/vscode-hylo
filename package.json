@@ -295,7 +295,7 @@
         "hylo.languageServer.version": {
           "type": "string",
           "default": "latest",
-          "description": "Version of the Hylo language server to use. Set to 'latest' to automatically download the latest version, or specify a version tag (e.g., 'v1.0.0')."
+          "description": "Version of the Hylo language server to use. Set to 'latest' to automatically download the latest version, or specify a version tag (e.g., 'v1.0.0'). This can be also set to `bundled` to use the version bundled with the extension." 
         },
         "hylo.languageServer.autoUpdate": {
           "type": "boolean",

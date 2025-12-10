@@ -1,0 +1,1 @@
+export const LSP_REPOSITORY_URL = 'https://api.github.com/repos/hylo-lang/hylo-language-server';
