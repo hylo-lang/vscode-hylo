@@ -37,6 +37,31 @@ async function activateBackend(
     `Working directory: ${process.cwd()}, activeDebugSession: ${debug.activeDebugSession}, __filename: ${__filename}`
   );
 
+  // Check if language server is installed, download if needed
+  let installedVersion = getInstalledVersion();
+  const config = workspace.getConfiguration('hylo.languageServer');
+  const specifiedVersion = config.get<string>('version', 'latest');
+  const autoUpdate = config.get<boolean>('autoUpdate', true);
+
+  if (!installedVersion) {
+    outputChannel.appendLine(
+      `Language server not found. Downloading version: ${specifiedVersion}...`
+    );
+    const downloadSuccess = await updateLanguageServer(false, specifiedVersion);
+    if (!downloadSuccess) {
+      throw new Error('Failed to download language server.');
+    }
+    installedVersion = getInstalledVersion();
+    if (!installedVersion) {
+      throw new Error('Language server installation failed.');
+    }
+  } else if (autoUpdate && !installedVersion.isDev) {
+    // Check for updates if auto-update is enabled
+    outputChannel.appendLine('Checking for language server updates...');
+    await updateLanguageServer(false, specifiedVersion);
+    installedVersion = getInstalledVersion();
+  }
+
   let serverExe = `${context.extensionPath}/dist/bin/${languageServerExecutableFilename()}`;
 
   let hyloRoot: string | undefined = undefined;
@@ -44,10 +69,11 @@ async function activateBackend(
 
   env['HYLO_STDLIB_PATH'] = `${context.extensionPath}/dist/hylo-stdlib`;
 
-  let installedVersion = getInstalledVersion();
+  // installedVersion should always be defined at this point
   if (!installedVersion) {
-    throw new Error('Language server is not installed.');
+    throw new Error('Language server installation state is invalid.');
   }
+
   let transport = installedVersion.isDev
     ? TransportKind.pipe
     : TransportKind.stdio;
@@ -152,7 +178,9 @@ export async function activate(context: vscode.ExtensionContext) {
   globalClient = await activateBackend(context);
 
   commands.registerCommand('hylo.updateLanguageServer', async () => {
-    await updateLanguageServer(true);
+    const config = workspace.getConfiguration('hylo.languageServer');
+    const specifiedVersion = config.get<string>('version', 'latest');
+    await updateLanguageServer(true, specifiedVersion);
   });
 
   commands.registerCommand('hylo.restartLanguageServer', async () => {
