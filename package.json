@@ -291,6 +291,16 @@
           "type": "string",
           "default": "${workspaceFolder}/.hylo_temp",
           "description": "Directory to store compiled Hylo outputs. Use ${workspaceFolder} for the current workspace folder."
+        },
+        "hylo.languageServer.version": {
+          "type": "string",
+          "default": "latest",
+          "description": "Version of the Hylo language server to use. Set to 'latest' to automatically download the latest version, or specify a version tag (e.g., 'v1.0.0')."
+        },
+        "hylo.languageServer.autoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update the language server to the latest version when available."
         }
       }
     }

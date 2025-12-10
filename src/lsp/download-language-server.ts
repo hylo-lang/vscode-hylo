@@ -12,16 +12,40 @@ import { getOutputChannel } from '../debug/hyloDebug';
 import { window } from 'vscode';
 
 function getTargetLspFilename(): string {
-  switch (os.type()) {
-    case 'Darwin':
-      return 'hylo-lsp-server-mac-x64.zip';
-    case 'Linux':
-      return 'hylo-lsp-server-linux-x64.zip';
-    case 'Windows_NT':
-      return 'hylo-lsp-server-windows-x64.zip';
+  const platform = os.platform();
+  const arch = os.arch();
+
+  let osName: string;
+  let archName: string;
+
+  // Map platform
+  switch (platform) {
+    case 'darwin':
+      osName = 'macos';
+      break;
+    case 'linux':
+      osName = 'linux';
+      break;
+    case 'win32':
+      osName = 'windows';
+      break;
     default:
-      throw `Unknown os type: ${os.type()}`;
+      throw new Error(`Unsupported platform: ${platform}`);
   }
+
+  // Map architecture
+  switch (arch) {
+    case 'x64':
+      archName = 'x64';
+      break;
+    case 'arm64':
+      archName = 'arm64';
+      break;
+    default:
+      throw new Error(`Unsupported architecture: ${arch}`);
+  }
+
+  return `hylo-lsp-server-${osName}-${archName}.zip`;
 }
 
 async function downloadFile(url: string, directory = '.') {
@@ -109,11 +133,19 @@ export function notifyError(message: string) {
 }
 
 export async function updateLanguageServer(
-  overwriteDev: boolean
+  overwriteDev: boolean,
+  specifiedVersion?: string
 ): Promise<boolean> {
   try {
-    const releaseUrl =
-      'https://api.github.com/repos/koliyo/hylo-lsp/releases/latest';
+    let releaseUrl: string;
+
+    if (specifiedVersion && specifiedVersion !== 'latest') {
+      releaseUrl = `https://api.github.com/repos/hylo-lang/hylo-language-server/releases/tags/${specifiedVersion}`;
+    } else {
+      releaseUrl =
+        'https://api.github.com/repos/hylo-lang/hylo-language-server/releases/latest';
+    }
+
     const distDirectory = 'dist';
     const lspDirectory = `${distDirectory}/bin`;
     const stdlibDirectory = `${distDirectory}/hylo-stdlib`;
@@ -122,7 +154,7 @@ export async function updateLanguageServer(
 
     const output = getOutputChannel();
     output.appendLine(
-      `Check for new release: ${releaseUrl}, overwriteDev: ${overwriteDev}`
+      `Check for new release: ${releaseUrl}, overwriteDev: ${overwriteDev}, specifiedVersion: ${specifiedVersion || 'latest'}`
     );
 
     const response = await fetch(releaseUrl);
@@ -226,14 +258,15 @@ export async function updateLanguageServer(
 }
 
 export function languageServerExecutableFilename(): string {
-  switch (os.type()) {
-    case 'Darwin':
+  const platform = os.platform();
+
+  switch (platform) {
+    case 'darwin':
+    case 'linux':
       return 'hylo-lsp-server';
-    case 'Linux':
-      return 'hylo-lsp-server';
-    case 'Windows_NT':
+    case 'win32':
       return 'hylo-lsp-server.exe';
     default:
-      throw new Error(`Unknown os type: ${os.type()}`);
+      throw new Error(`Unknown platform: ${platform}`);
   }
 }
