@@ -137,7 +137,7 @@
         "title": "Hylo: Restart Language Server"
       },
       {
-        "command": "hylo.updateLanguageServerVersion",
+        "command": "hylo.updateLanguageServer",
         "title": "Hylo: Update Language Server Version"
       }
     ],
