@@ -105,7 +105,7 @@ async function initializeLanguageServer(
   const transportString = '--stdio';
 
   outputChannel.appendLine(
-    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transportString}, stdlib path: ${stdlibPath}`
+    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transportString}`
   );
 
   let executable: Executable = {
