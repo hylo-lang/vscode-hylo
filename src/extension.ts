@@ -16,7 +16,7 @@ import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
 import {
   getInstalledVersion,
   languageServerExecutableFilename,
-  updateLanguageServer
+  doUpdateLanguageServer
 } from './lsp/download-language-server';
 import {
   getHyloOutputChannel,
@@ -24,55 +24,76 @@ import {
   normalizePath,
   spawnProcess
 } from './util/shared';
+import {
+  ConfigurationKeys,
+  ExtensionCommands,
+  TOP_LEVEL_CONFIG_KEY
+} from './extension-keys';
 
 let globalClient: LanguageClient | null = null;
 
-async function activateBackend(
+export async function restartLanguageServer() {
+  if (globalClient) {
+    await globalClient.restart();
+  }
+}
+
+async function explicitlyUpdateLanguageServer() {
+  const config = workspace.getConfiguration('hylo.languageServer');
+  const specifiedVersion = config.get<string>('version', 'latest');
+
+  await globalClient?.stop();
+
+  const updateSucceeded = await doUpdateLanguageServer(
+    vscode.ProgressLocation.Notification,
+    specifiedVersion
+  );
+  globalClient?.restart();
+
+  if (!updateSucceeded) return;
+
+  // Restart the language server to use the new version
+  vscode.window.showInformationMessage(
+    'Hylo: Language server restarted with updated version'
+  );
+}
+
+async function initializeLanguageServer(
   context: ExtensionContext
 ): Promise<LanguageClient> {
   process.chdir(context.extensionPath);
   let outputChannel = getHyloOutputChannel();
 
   outputChannel.appendLine(
-    `Working directory: ${process.cwd()}, activeDebugSession: ${debug.activeDebugSession}, __filename: ${__filename}`
+    `Working directory: ${process.cwd()}, activeDebugSession: ${
+      debug.activeDebugSession
+    }, __filename: ${__filename}`
   );
 
   // Get language server configuration
-  const config = workspace.getConfiguration('hylo.languageServer');
-  const specifiedVersion = config.get<string>('version', 'latest');
-  const autoUpdate = config.get<boolean>('autoUpdate', true);
+  const config = workspace.getConfiguration(TOP_LEVEL_CONFIG_KEY);
+  const specifiedVersion = config.get<string>(
+    ConfigurationKeys.VERSION,
+    'latest'
+  );
+  const autoUpdate = config.get<boolean>(ConfigurationKeys.AUTO_UPDATE, true);
 
   outputChannel.appendLine(
     `Language server configuration: version=${specifiedVersion}, autoUpdate=${autoUpdate}`
   );
 
   // Check if language server is available or needs to be downloaded
-  let installedVersion = await getInstalledVersion();
-
-  if (!installedVersion) {
-    // No language server found - need to download or use bundled version
-    outputChannel.appendLine(
-      `Language server not found. Attempting to obtain version: ${specifiedVersion}...`
-    );
-    const downloadSuccess = await updateLanguageServer(
-      vscode.ProgressLocation.Window,
-      specifiedVersion
-    );
-    if (!downloadSuccess) {
-      throw new Error('Failed to obtain language server.');
-    }
-    installedVersion = await getInstalledVersion();
-  } else if (autoUpdate && !installedVersion.isDev && specifiedVersion !== 'bundled') {
-    // Check for updates if auto-update is enabled and not using bundled version
-    outputChannel.appendLine('Checking for language server updates...');
-    await updateLanguageServer(
-      vscode.ProgressLocation.Window,
-      specifiedVersion
-    );
-    installedVersion = await getInstalledVersion();
+  let serverVersion = await ensureLanguageServerInstallation(
+    outputChannel,
+    specifiedVersion,
+    autoUpdate
+  );
+  if (!serverVersion) {
+    throw new Error('Language server installation state is invalid.');
   }
-
-  let serverExe = `${context.extensionPath}/dist/bin/${languageServerExecutableFilename()}`;
+  let serverExe = `${
+    context.extensionPath
+  }/dist/bin/${languageServerExecutableFilename()}`;
 
   let hyloRoot: string | undefined = undefined;
   let env = process.env;
@@ -80,11 +101,8 @@ async function activateBackend(
   env['HYLO_STDLIB_PATH'] = `${context.extensionPath}/dist/hylo-stdlib`;
 
   // installedVersion should always be defined at this point
-  if (!installedVersion) {
-    throw new Error('Language server installation state is invalid.');
-  }
 
-  let transport = installedVersion.isDev
+  let transport = serverVersion.isDev
     ? TransportKind.pipe
     : TransportKind.stdio;
 
@@ -94,7 +112,7 @@ async function activateBackend(
 
   let executable: Executable = {
     command: serverExe,
-    args: [],
+    args: [transport === TransportKind.pipe ? '--pipe' : '--stdio'],
     transport: transport,
     options: {
       cwd: context.extensionPath,
@@ -169,12 +187,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Register commands for Hylo file execution and compilation
   context.subscriptions.push(
-    vscode.commands.registerCommand('hylo.runCurrentFile', runCurrentFile),
     vscode.commands.registerCommand(
-      'hylo.compileAndRunFolder',
+      ExtensionCommands.RUN_CURRENT_FILE,
+      compileAndRunCurrentHyloFile
+    ),
+    vscode.commands.registerCommand(
+      ExtensionCommands.RUN_FOLDER,
       compileAndRunFolder
     ),
-    vscode.commands.registerCommand('hylo.startDebugging', startDebugging)
+    vscode.commands.registerCommand(
+      ExtensionCommands.START_DEBUGGING,
+      startDebugging
+    )
   );
 
   // Register the debug adapter factory
@@ -185,25 +209,16 @@ export async function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  globalClient = await activateBackend(context);
+  commands.registerCommand(
+    'hylo.updateLanguageServer',
+    explicitlyUpdateLanguageServer
+  );
+  commands.registerCommand(
+    ExtensionCommands.RESTART_LANGUAGE_SERVER,
+    restartLanguageServer
+  );
 
-  commands.registerCommand('hylo.updateLanguageServer', async () => {
-    const config = workspace.getConfiguration('hylo.languageServer');
-    const specifiedVersion = config.get<string>('version', 'latest');
-    const success = await updateLanguageServer(
-      vscode.ProgressLocation.Notification,
-      specifiedVersion
-    );
-    if (success && globalClient) {
-      // Restart the language server to use the new version
-      await globalClient.restart();
-      vscode.window.showInformationMessage('Hylo LSP: Language server restarted with updated version');
-    }
-  });
-
-  commands.registerCommand('hylo.restartLanguageServer', async () => {
-    await globalClient?.restart();
-  });
+  globalClient = await initializeLanguageServer(context);
 
   // Export the output channel management function for use elsewhere
   return {
@@ -217,10 +232,7 @@ export async function deactivate() {
   }
 }
 
-/**
- * Run the current Hylo file
- */
-async function runCurrentFile() {
+async function compileAndRunCurrentHyloFile() {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showErrorMessage('No active editor found');
@@ -238,7 +250,7 @@ async function runCurrentFile() {
   const fileNameWithoutExt = path.parse(fileName).name;
 
   try {
-    await compileAndRunHylo(filePath, fileNameWithoutExt);
+    await doCompileAndRunHylo(filePath, fileNameWithoutExt);
   } catch (error) {
     vscode.window.showErrorMessage(`Failed to run Hylo file: ${error}`);
   }
@@ -283,7 +295,7 @@ async function compileAndRunFolder(folderUri?: vscode.Uri) {
       return;
     }
 
-    await compileAndRunHylo(hyloFiles, folderName);
+    await doCompileAndRunHylo(hyloFiles, folderName);
   } catch (error) {
     vscode.window.showErrorMessage(
       `Failed to compile and run folder: ${error}`
@@ -339,7 +351,7 @@ function required<T>(
  * @param sourcePath Path to the source file or array of file paths
  * @param outputName Name for the output executable
  */
-async function compileAndRunHylo(
+async function doCompileAndRunHylo(
   sourcePath: string | string[],
   outputName: string
 ) {
@@ -494,4 +506,36 @@ async function startDebugging() {
   } catch (error) {
     vscode.window.showErrorMessage(`Failed to start debugging: ${error}`);
   }
+}
+
+async function ensureLanguageServerInstallation(
+  output: vscode.OutputChannel,
+  specifiedVersion: string,
+  autoUpdate: boolean
+) {
+  let installedVersion = await getInstalledVersion();
+
+  if (!installedVersion) {
+    // No language server found - need to download or use bundled version
+    output.appendLine(
+      `Language server not found. Attempting to obtain version: ${specifiedVersion}...`
+    );
+    const downloadSuccess = await doUpdateLanguageServer(
+      vscode.ProgressLocation.Window,
+      specifiedVersion
+    );
+    if (!downloadSuccess) {
+      throw new Error('Failed to obtain language server.');
+    }
+  } else if (autoUpdate && !installedVersion.isDev) {
+    // Check for updates if auto-update is enabled and not using bundled version
+    output.appendLine('Checking for language server updates...');
+    await doUpdateLanguageServer(
+      vscode.ProgressLocation.Window,
+      specifiedVersion
+    );
+    // todo: don't delete LSP if the update fails
+  }
+
+  return await getInstalledVersion();
 }

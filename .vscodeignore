@@ -16,3 +16,4 @@ vsc-extension-quickstart.md
 dist/bin/**
 dist/hylo-stdlib/**
 dist/manifest.json
+dist/*.zip
