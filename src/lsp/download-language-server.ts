@@ -16,7 +16,7 @@ import {
   Progress,
   OutputChannel
 } from 'vscode';
-import { LSP_REPOSITORY_URL } from '../config';
+import { LSP_REPOSITORY_URL } from '../constants';
 import * as fsSync from 'fs';
 
 /**
@@ -219,7 +219,7 @@ function checkLocalBundledVersion(output: OutputChannel): boolean {
 /// If `specifiedVersion` is 'bundled', no download occurs and bundled version is used.
 /// If `specifiedVersion` is 'latest', the latest release will be downloaded.
 /// Otherwise, the specified version tag will be downloaded.
-export async function updateLanguageServer(
+export async function doUpdateLanguageServer(
   location: ProgressLocation,
   specifiedVersion: string = 'latest'
 ): Promise<boolean> {
@@ -327,15 +327,15 @@ export async function updateLanguageServer(
         );
 
         // Download release artifacts (50% of progress: 5-55)
-        progress.report({ increment: 0, message: 'Downloading LSP server...' });
-        output.appendLine(`Download LSP server: ${lspUrl}`);
+        progress.report({ increment: 0, message: 'Downloading language server...' });
+        output.appendLine(`Download language server: ${lspUrl}`);
         await downloadFile(lspUrl, distDirectory, progress, token);
 
         progress.report({
           increment: 0,
           message: 'Downloading standard library...'
         });
-        output.appendLine(`Download stdlib: ${stdlibUrl}`);
+        output.appendLine(`Download standard library: ${stdlibUrl}`);
         await downloadFile(stdlibUrl, distDirectory, progress, token);
 
         // Cleanup (10% of progress: 55-65)
@@ -360,7 +360,7 @@ export async function updateLanguageServer(
         // Extract updated artifacts (25% of progress: 65-90)
         progress.report({ increment: 0, message: 'Extracting LSP server...' });
         output.appendLine(`Unzip LSP archive: ${targetLspFilepath}`);
-        await decompress(targetLspFilepath, lspDirectory, { strip: 1 });
+        await decompress(targetLspFilepath, lspDirectory);
 
         progress.report({
           increment: 15,
