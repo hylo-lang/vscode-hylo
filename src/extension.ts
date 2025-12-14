@@ -99,8 +99,6 @@ async function initializeLanguageServer(
   let hyloRoot: string | undefined = undefined;
   let env = process.env;
 
-  const stdlibPath = `${context.extensionPath}/dist/hylo-stdlib`;
-
   // installedVersion should always be defined at this point
 
   const transport = TransportKind.stdio;
@@ -112,7 +110,7 @@ async function initializeLanguageServer(
 
   let executable: Executable = {
     command: serverExe,
-    args: [transportString, '--stdlib-path', stdlibPath],
+    args: [transportString],
     transport: transport,
     options: {
       cwd: context.extensionPath,
