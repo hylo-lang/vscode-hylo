@@ -79,7 +79,7 @@ function getTargetLspFilename(): string {
       throw new Error(`Unsupported architecture: ${arch}`);
   }
 
-  return `hylo-lsp-server-${osName}-${archName}.zip`;
+  return `hylo-language-server-${osName}-${archName}.zip`;
 }
 
 async function downloadFile(
@@ -165,11 +165,13 @@ class VersionData {
     );
   }
 
-  static fromJsonData(data: any): VersionData | null {
+  static fromJsonData(data: any, output: OutputChannel = getOutputChannel()): VersionData | null {
     if (!data) {
+      output.appendLine('No data found for version');
       return null;
     }
-    if (!data.id || !data.name || !data.published_at) {
+    if (Number.isNaN(Number(data.id)) || !data.name || !data.published_at) {
+      output.appendLine('Incomplete data found for version');
       return null;
     }
     // todo validate data types using zod
@@ -180,18 +182,20 @@ class VersionData {
 /// Retrieves the currently installed version of the Hylo language server, or null if not installed.
 ///
 /// Returns null without logging if the manifest file doesn't exist (expected for fresh installs).
-export async function getInstalledVersion(): Promise<VersionData | null> {
+export async function getInstalledVersion(output: OutputChannel): Promise<VersionData | null> {
   try {
-    const manifestPath = 'dist/manifest.json';
+    const manifestPath = path.join('dist', 'manifest.json');
     if (!fsSync.existsSync(manifestPath)) {
+      output.appendLine(`No manifest file found for installed LSP at '${manifestPath}'`);
       return null;
     }
     const jsonString = await fs.readFile(manifestPath, 'utf-8');
     const data = JSON.parse(jsonString);
-
-    return VersionData.fromJsonData(data);
+    
+    output.appendLine("Read manifest contents: " + JSON.stringify(data, null, 2));
+    return VersionData.fromJsonData(data, output);
   } catch (error) {
-    getOutputChannel().appendLine(`[getInstalledVersion] Exception: ${error}`);
+    output.appendLine(`[getInstalledVersion] Exception: ${error}`);
     return null;
   }
 }
@@ -226,7 +230,7 @@ export async function doUpdateLanguageServer(
   const output = getOutputChannel();
 
   // Handle bundled version - no download needed
-  const localVersion = await getInstalledVersion();
+  const localVersion = await getInstalledVersion(output);
 
   if (localVersion?.isDev) {
     return checkLocalBundledVersion(output);
@@ -270,7 +274,7 @@ export async function doUpdateLanguageServer(
           return false;
         }
 
-        const localVersion = await getInstalledVersion();
+        const localVersion = await getInstalledVersion(output);
         const target = getTargetLspFilename();
 
         if (latestVersion.equals(localVersion)) {
@@ -403,9 +407,9 @@ export function languageServerExecutableFilename(): string {
   switch (platform) {
     case 'darwin':
     case 'linux':
-      return 'hylo-lsp-server';
+      return 'hylo-language-server';
     case 'win32':
-      return 'hylo-lsp-server.exe';
+      return 'hylo-language-server.exe';
     default:
       throw new Error(`Unknown platform: ${platform}`);
   }

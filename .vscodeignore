@@ -11,9 +11,4 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
-
-# Exclude language server binaries from package (will be downloaded at runtime)
-dist/bin/**
-dist/hylo-stdlib/**
-dist/manifest.json
 dist/*.zip

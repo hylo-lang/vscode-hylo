@@ -64,6 +64,7 @@ async function initializeLanguageServer(
   process.chdir(context.extensionPath);
   let outputChannel = getHyloOutputChannel();
 
+  outputChannel.appendLine(`Initializing language server...`);
   outputChannel.appendLine(
     `Working directory: ${process.cwd()}, activeDebugSession: ${
       debug.activeDebugSession
@@ -98,21 +99,20 @@ async function initializeLanguageServer(
   let hyloRoot: string | undefined = undefined;
   let env = process.env;
 
-  env['HYLO_STDLIB_PATH'] = `${context.extensionPath}/dist/hylo-stdlib`;
+  const stdlibPath = `${context.extensionPath}/dist/hylo-stdlib`;
 
   // installedVersion should always be defined at this point
 
-  let transport = serverVersion.isDev
-    ? TransportKind.pipe
-    : TransportKind.stdio;
+  const transport = TransportKind.stdio;
+  const transportString = '--stdio';
 
   outputChannel.appendLine(
-    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transport}`
+    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transportString}, stdlib path: ${stdlibPath}`
   );
 
   let executable: Executable = {
     command: serverExe,
-    args: [transport === TransportKind.pipe ? '--pipe' : '--stdio'],
+    args: [transportString, '--stdlib-path', stdlibPath],
     transport: transport,
     options: {
       cwd: context.extensionPath,
@@ -158,11 +158,8 @@ async function initializeLanguageServer(
 
   client
     .start()
-    .catch((reason) => {
-      outputChannel.appendLine(`Client error: ${reason}`);
-    })
-    .finally(() => {
-      outputChannel.appendLine(`Client finally`);
+    .then(() => {
+      outputChannel.appendLine(`Language server started successfully.`);
     });
 
   return client;
@@ -513,7 +510,7 @@ async function ensureLanguageServerInstallation(
   specifiedVersion: string,
   autoUpdate: boolean
 ) {
-  let installedVersion = await getInstalledVersion();
+  let installedVersion = await getInstalledVersion(output);
 
   if (!installedVersion) {
     // No language server found - need to download or use bundled version
@@ -537,5 +534,5 @@ async function ensureLanguageServerInstallation(
     // todo: don't delete LSP if the update fails
   }
 
-  return await getInstalledVersion();
+  return await getInstalledVersion(output);
 }
