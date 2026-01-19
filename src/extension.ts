@@ -153,11 +153,9 @@ async function initializeLanguageServer(
   client.registerProposedFeatures();
   client.setTrace(Trace.Messages);
 
-  client
-    .start()
-    .then(() => {
-      outputChannel.appendLine(`Language server started successfully.`);
-    });
+  client.start().then(() => {
+    outputChannel.appendLine(`Language server started successfully.`);
+  });
 
   return client;
 }
