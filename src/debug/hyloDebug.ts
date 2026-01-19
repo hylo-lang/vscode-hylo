@@ -303,7 +303,7 @@ export function createHyloDebugAdapterDescriptorFactory(): vscode.DebugAdapterDe
 }
 
 // Export the output channel for use in extension.ts
-export function getOutputChannel(): vscode.OutputChannel {
+export function getDebugOutputChannel(): vscode.OutputChannel {
   if (!debugOutputChannel) {
     debugOutputChannel = vscode.window.createOutputChannel('Hylo Debug');
   }

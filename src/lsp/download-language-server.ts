@@ -5,10 +5,9 @@ import fetch from 'node-fetch';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 // import { mkdir, writeFile, readFile, rm } from 'fs/promises'
-import { Readable } from 'stream';
-import { finished } from 'stream/promises';
+import { Readable, Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 import * as os from 'os';
-import { getOutputChannel } from '../debug/hyloDebug';
 import {
   window,
   ProgressLocation,
@@ -17,32 +16,26 @@ import {
   OutputChannel
 } from 'vscode';
 import { LSP_REPOSITORY_URL } from '../constants';
-import * as fsSync from 'fs';
+import { getHyloOutputChannel } from '../util/shared';
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    // F_OK checks if the file is visible to the calling process
+    await fs.access(path, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Checks if a bundled language server exists in the dist directory.
  */
-export function hasBundledLanguageServer(): boolean {
-  try {
-    const manifestPath = 'dist/manifest.json';
-    if (!fsSync.existsSync(manifestPath)) {
-      return false;
-    }
-
-    const binPath = `dist/bin/${languageServerExecutableFilename()}`;
-    if (!fsSync.existsSync(binPath)) {
-      return false;
-    }
-
-    const stdlibPath = 'dist/hylo-stdlib';
-    if (!fsSync.existsSync(stdlibPath)) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    return false;
-  }
+export async function hasBundledLanguageServer(): Promise<boolean> {
+  return (
+    (await fileExists('dist/manifest.json')) ||
+    (await fileExists(`dist/bin/${languageServerExecutableFilename()}`))
+  );
 }
 
 function getTargetLspFilename(): string {
@@ -82,59 +75,94 @@ function getTargetLspFilename(): string {
   return `hylo-language-server-${osName}-${archName}.zip`;
 }
 
+function monotonicTimeMillis() {
+  const nanos = process.hrtime.bigint();
+  return Number(nanos / 1_000_000n);
+}
+
 async function downloadFile(
-  url: string,
-  directory: string,
+  sourceUrl: string,
+  targetDirectory: string,
   progress: Progress<{ increment?: number; message?: string }>,
   token: CancellationToken
 ) {
-  const res = await fetch(url);
-  const fileName = path.basename(url);
-  const destination = path.resolve(directory, fileName);
+  const outputChannel = getHyloOutputChannel();
+
+  outputChannel.appendLine(`Starting download from: ${sourceUrl}`);
+  const res = await fetch(sourceUrl);
+
+  if (!res.ok) {
+    throw new Error(`Failed to download: ${res.status} ${res.statusText}`);
+  }
+  if (!res.body) {
+    throw new Error('Response body is null');
+  }
+
+  const fileName = path.basename(sourceUrl);
+  const destination = path.resolve(targetDirectory, fileName);
   const size = Number(res.headers.get('Content-Length'));
+  if (!size || isNaN(size)) {
+    throw new Error('Invalid Content-Length header');
+  }
+
   const sizeMB = (size / (1024 * 1024)).toFixed(2);
 
-  let from_stream = Readable.from(res.body!);
-  let to_stream = fsSync.createWriteStream(destination);
   let written = 0;
   let progressPercent = 0;
-  let outputChannel = getOutputChannel();
 
   outputChannel.appendLine(`Downloading ${fileName} (${sizeMB} MB)...`);
 
-  from_stream.pipe(to_stream);
-  from_stream.on('data', (data) => {
-    // Check for cancellation
-    if (token?.isCancellationRequested) {
-      from_stream.destroy();
-      to_stream.destroy();
-      fsSync.unlinkSync(destination);
-      throw new Error('Download cancelled by user');
-    }
+  let lastUpdate = monotonicTimeMillis();
+  // Create a transform stream for progress tracking and cancellation
+  const progressTransform = new Transform({
+    transform(chunk, _encoding, callback) {
+      // Check for cancellation
+      if (token?.isCancellationRequested) {
+        callback(new Error('Download cancelled by user'));
+        return;
+      }
 
-    written += data.length;
-    let newPercent = Math.floor((written / size) * 100);
+      written += chunk.length;
+      const newPercent = Math.floor((written / size) * 100);
 
-    if (newPercent > progressPercent) {
-      const increment = newPercent - progressPercent;
       const downloadedMB = (written / (1024 * 1024)).toFixed(2);
 
-      if (progress) {
+      // Throttle progress updates to at most every 100ms
+      let now = monotonicTimeMillis();
+      if (now - lastUpdate >= 100) {
         progress.report({
-          increment,
+          increment: newPercent - progressPercent,
           message: `${fileName}: ${downloadedMB} MB / ${sizeMB} MB (${newPercent}%)`
         });
+        outputChannel.appendLine(`${newPercent}%`);
+        lastUpdate = now;
       }
 
-      for (let i = progressPercent; i < newPercent; i++) {
-        outputChannel.append(i % 10 === 0 ? `${i}%` : '.');
-      }
       progressPercent = newPercent;
+      callback(null, chunk);
     }
   });
 
-  await finished(to_stream);
-  outputChannel.appendLine('100%');
+  try {
+    // Use pipeline for proper error handling and cleanup
+    const fileHandle = await fs.open(destination, 'w');
+    try {
+      await pipeline(
+        Readable.from(res.body),
+        progressTransform,
+        fileHandle.createWriteStream()
+      );
+      outputChannel.appendLine('100%');
+    } finally {
+      await fileHandle.close();
+    }
+  } catch (error) {
+    // Clean up partial download on error or cancellation
+    try {
+      await fs.rm(destination);
+    } catch {}
+    throw error;
+  }
 }
 
 class VersionData {
@@ -165,7 +193,10 @@ class VersionData {
     );
   }
 
-  static fromJsonData(data: any, output: OutputChannel = getOutputChannel()): VersionData | null {
+  static fromJsonData(
+    data: any,
+    output: OutputChannel = getHyloOutputChannel()
+  ): VersionData | null {
     if (!data) {
       output.appendLine('No data found for version');
       return null;
@@ -182,42 +213,51 @@ class VersionData {
 /// Retrieves the currently installed version of the Hylo language server, or null if not installed.
 ///
 /// Returns null without logging if the manifest file doesn't exist (expected for fresh installs).
-export async function getInstalledVersion(output: OutputChannel): Promise<VersionData | null> {
+export async function getInstalledVersion(
+  output: OutputChannel
+): Promise<VersionData | null> {
   try {
-    const manifestPath = path.join('dist', 'manifest.json');
-    if (!fsSync.existsSync(manifestPath)) {
-      output.appendLine(`No manifest file found for installed LSP at '${manifestPath}'`);
-      return null;
-    }
-    const jsonString = await fs.readFile(manifestPath, 'utf-8');
+    const jsonString = await fs.readFile('dist/manifest.json', 'utf-8');
     const data = JSON.parse(jsonString);
-    
-    output.appendLine("Read manifest contents: " + JSON.stringify(data, null, 2));
+
+    output.appendLine(
+      'Read manifest contents: ' + JSON.stringify(data, null, 2)
+    );
     return VersionData.fromJsonData(data, output);
   } catch (error) {
-    output.appendLine(`[getInstalledVersion] Exception: ${error}`);
+    output.appendLine(
+      `[getInstalledVersion] Couldn't read version from manifest. ${error}`
+    );
     return null;
   }
 }
 export function notifyError(message: string) {
-  const output = getOutputChannel();
+  const output = getHyloOutputChannel();
   output.appendLine(`Error: ${message}`);
   window.showErrorMessage(message);
 }
 
-function checkLocalBundledVersion(output: OutputChannel): boolean {
-  if (hasBundledLanguageServer()) {
+async function verifyLocalBundledVersion(
+  output: OutputChannel
+): Promise<boolean> {
+  if (await hasBundledLanguageServer()) {
     output.appendLine('Using bundled language server version');
     return true;
   } else {
-    const message =
-      'Bundled language server not found. Please set version to "latest" or a specific version to download.';
-    output.appendLine(message);
-    window.showErrorMessage(message);
+    notifyError(
+      'Bundled language server not found. Please set version to "latest" or a specific version to download.'
+    );
     return false;
   }
 }
 
+interface GitHubReleaseAsset {
+  name: string;
+  browser_download_url: string;
+}
+interface GitHubReleaseResponse {
+  assets: GitHubReleaseAsset[];
+}
 /// Attempts to update / download the Hylo language server, reporting progress on the specified UI location.
 ///
 /// If `specifiedVersion` is 'bundled', no download occurs and bundled version is used.
@@ -227,13 +267,13 @@ export async function doUpdateLanguageServer(
   location: ProgressLocation,
   specifiedVersion: string = 'latest'
 ): Promise<boolean> {
-  const output = getOutputChannel();
+  const output = getHyloOutputChannel();
 
   // Handle bundled version - no download needed
   const localVersion = await getInstalledVersion(output);
 
   if (localVersion?.isDev) {
-    return checkLocalBundledVersion(output);
+    return verifyLocalBundledVersion(output);
   }
 
   return window.withProgress(
@@ -246,27 +286,19 @@ export async function doUpdateLanguageServer(
       try {
         progress.report({ increment: 0, message: 'Checking for updates...' });
 
-        let releaseUrl: string;
-
-        if (specifiedVersion !== 'latest') {
-          releaseUrl = `${LSP_REPOSITORY_URL}/releases/tags/${specifiedVersion}`;
-        } else {
-          releaseUrl = `${LSP_REPOSITORY_URL}/releases/latest`;
-        }
+        let releaseUrl =
+          specifiedVersion == 'latest'
+            ? `${LSP_REPOSITORY_URL}/releases/latest`
+            : `${LSP_REPOSITORY_URL}/releases/tags/${specifiedVersion}`;
 
         const distDirectory = 'dist';
-        const lspDirectory = `${distDirectory}/bin`;
-        const stdlibDirectory = `${distDirectory}/hylo-stdlib`;
-        const stdlibAssetFilename = 'hylo-stdlib.zip';
-        const manifestPath = `${distDirectory}/manifest.json`;
 
         output.appendLine(
           `Checking for release: ${releaseUrl}, specifiedVersion: ${specifiedVersion}`
         );
 
         const response = await fetch(releaseUrl);
-        const body = await response.text();
-        const data = JSON.parse(body);
+        const data = (await response.json()) as GitHubReleaseResponse;
 
         const latestVersion = VersionData.fromJsonData(data);
         if (!latestVersion) {
@@ -275,11 +307,11 @@ export async function doUpdateLanguageServer(
         }
 
         const localVersion = await getInstalledVersion(output);
-        const target = getTargetLspFilename();
+        const archiveFileName = getTargetLspFilename();
 
         if (latestVersion.equals(localVersion)) {
           output.appendLine(
-            `Installed version is up-to-date: ${localVersion}, LSP target artifact: ${target}`
+            `Installed version is up-to-date: ${localVersion}, LSP artifact: ${archiveFileName}`
           );
           progress.report({ increment: 100, message: 'Already up-to-date' });
           window.showInformationMessage(
@@ -289,7 +321,7 @@ export async function doUpdateLanguageServer(
         }
 
         progress.report({
-          increment: 5,
+          increment: 0,
           message: `Found version ${latestVersion.name}`
         });
 
@@ -297,90 +329,43 @@ export async function doUpdateLanguageServer(
           `Installation of new LSP release required\nlocal version: ${localVersion}\nlatest version: ${latestVersion}`
         );
 
-        if (!fsSync.existsSync(distDirectory)) {
-          fsSync.mkdirSync(distDirectory, { recursive: true });
-        }
+        // Recreate clean dist directory
+        await fs.rm(distDirectory, { recursive: true, force: true });
+        await fs.mkdir(distDirectory, { recursive: true });
 
-        const lspAsset = data.assets.find((a: any) => a.name === target);
+        const lspAsset = data.assets.find((a) => a.name === archiveFileName);
 
         if (!lspAsset) {
           notifyError(
-            `Could not find matching release asset for target: ${target}`
+            `Could not find matching release asset for target: ${archiveFileName}`
           );
           return false;
         }
 
-        const stdlibAsset = data.assets.find(
-          (a: any) => a.name === stdlibAssetFilename
-        );
-
-        if (!stdlibAsset) {
-          notifyError(
-            `Could not find stdlib release asset: ${stdlibAssetFilename}`
-          );
-          return true;
-        }
-
-        const lspUrl = lspAsset.browser_download_url;
-        const stdlibUrl = stdlibAsset.browser_download_url;
-
-        const targetLspFilepath = path.resolve(distDirectory, target);
-        const targetStdlibFilepath = path.resolve(
-          distDirectory,
-          stdlibAssetFilename
-        );
-
-        // Download release artifacts (50% of progress: 5-55)
-        progress.report({ increment: 0, message: 'Downloading language server...' });
-        output.appendLine(`Download language server: ${lspUrl}`);
-        await downloadFile(lspUrl, distDirectory, progress, token);
-
         progress.report({
           increment: 0,
-          message: 'Downloading standard library...'
+          message: 'Downloading language server...'
         });
-        output.appendLine(`Download standard library: ${stdlibUrl}`);
-        await downloadFile(stdlibUrl, distDirectory, progress, token);
 
-        // Cleanup (10% of progress: 55-65)
-        progress.report({ increment: 10, message: 'Removing old files...' });
+        const targetLspFilepath = path.resolve(distDirectory, archiveFileName);
 
-        if (fsSync.existsSync(stdlibDirectory)) {
-          output.appendLine(`Delete outdated stdlib: ${stdlibDirectory}`);
-          fsSync.rmSync(stdlibDirectory, { recursive: true, force: true });
-        }
+        output.appendLine(
+          `Downloading language server from: ${lspAsset.browser_download_url}`
+        );
+        await downloadFile(
+          lspAsset.browser_download_url,
+          distDirectory,
+          progress,
+          token
+        );
 
-        if (fsSync.existsSync(lspDirectory)) {
-          output.appendLine(
-            `Delete outdated lsp executable in: ${lspDirectory}`
-          );
-          fsSync.rmSync(lspDirectory, { recursive: true, force: true });
-        }
-
-        if (!fsSync.existsSync(lspDirectory)) {
-          fsSync.mkdirSync(lspDirectory, { recursive: true });
-        }
-
-        // Extract updated artifacts (25% of progress: 65-90)
         progress.report({ increment: 0, message: 'Extracting LSP server...' });
         output.appendLine(`Unzip LSP archive: ${targetLspFilepath}`);
-        await decompress(targetLspFilepath, lspDirectory);
+        await decompress(targetLspFilepath, distDirectory);
 
-        progress.report({
-          increment: 15,
-          message: 'Extracting standard library...'
-        });
-        output.appendLine(`Unzip stdlib archive: ${targetStdlibFilepath}`);
-        await decompress(targetStdlibFilepath, distDirectory);
-
-        // Finalize (10% of progress: 90-100)
-        progress.report({
-          increment: 10,
-          message: 'Finalizing installation...'
-        });
+        const manifestPath = `${distDirectory}/manifest.json`;
         output.appendLine(`Write manifest: ${path.resolve(manifestPath)}`);
-        const indentedManifest = JSON.stringify(data, null, '  ');
-        fsSync.writeFileSync(manifestPath, indentedManifest);
+        await fs.writeFile(manifestPath, JSON.stringify(data, null, '  '));
 
         progress.report({ increment: 0, message: 'Installation complete!' });
         window.showInformationMessage(
