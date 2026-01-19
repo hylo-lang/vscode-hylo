@@ -94,9 +94,8 @@ async function initializeLanguageServer(
   }
   let serverExe = `${
     context.extensionPath
-  }/dist/bin/${languageServerExecutableFilename()}`;
+  }/dist/${languageServerExecutableFilename()}`;
 
-  let hyloRoot: string | undefined = undefined;
   let env = process.env;
 
   // installedVersion should always be defined at this point
@@ -105,7 +104,7 @@ async function initializeLanguageServer(
   const transportString = '--stdio';
 
   outputChannel.appendLine(
-    `Hylo root directory: ${hyloRoot}, lsp server executable: ${serverExe}, transport: ${transportString}`
+    `LSP server executable: ${serverExe}, transport: ${transportString}`
   );
 
   let executable: Executable = {
