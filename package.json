@@ -110,7 +110,7 @@
       "hylo": [
         {
           "id": "hylo.ast-explorer",
-          "name": "Hylo AST Explorer",
+          "name": "Implicit context",
           "type": "webview",
           "icon": "./icons/colored-light.png"
         }
