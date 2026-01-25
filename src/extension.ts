@@ -174,7 +174,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       ASTExplorerViewProvider.viewType,
       astExplorerViewProvider
-    )
+    ),
+    astExplorerViewProvider
   );
 
   // Register commands for Hylo file execution and compilation
@@ -211,6 +212,26 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   globalClient = await initializeLanguageServer(context);
+
+  // Register custom LSP command handler
+  commands.registerCommand('hylo.listGivens', async (location) => {
+    if (!globalClient) {
+      return '';
+    }
+    try {
+      const result = await globalClient.sendRequest(
+        'workspace/executeCommand',
+        {
+          command: 'listGivens',
+          arguments: [location]
+        }
+      );
+      return result || '';
+    } catch (error) {
+      console.error('Error executing listGivens command:', error);
+      return '';
+    }
+  });
 
   // Export the output channel management function for use elsewhere
   return {
