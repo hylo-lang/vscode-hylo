@@ -1,12 +1,43 @@
 import * as vscode from 'vscode';
-import { MessageFromFrontend } from './webview/messages';
+import { MessageFromFrontend, MessageToFrontend } from './webview/messages';
 
 export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'hylo.ast-explorer';
 
   private view?: vscode.WebviewView;
+  private disposables: vscode.Disposable[] = [];
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(private readonly _extensionUri: vscode.Uri) {
+    // Listen for cursor position changes
+    this.disposables.push(
+      vscode.window.onDidChangeTextEditorSelection((e) => {
+        if (e.textEditor.document.languageId === 'hylo') {
+          this.updateSymbolInfo(e.textEditor);
+        }
+      })
+    );
+
+    // Listen for active editor changes
+    this.disposables.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor && editor.document.languageId === 'hylo') {
+          this.updateSymbolInfo(editor);
+        }
+      })
+    );
+
+    // Listen for document changes (typing, etc.)
+    this.disposables.push(
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        if (e.document.languageId === 'hylo') {
+          const activeEditor = vscode.window.activeTextEditor;
+          if (activeEditor && activeEditor.document === e.document) {
+            this.updateSymbolInfo(activeEditor);
+          }
+        }
+      })
+    );
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -50,6 +81,62 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async updateSymbolInfo(editor: vscode.TextEditor) {
+    if (!this.view) {
+      return;
+    }
+
+    const position = editor.selection.active;
+    const document = editor.document;
+
+    try {
+      // Create Location parameter for the LSP command
+      const location = {
+        uri: document.uri.toString(),
+        range: {
+          start: { line: position.line, character: position.character },
+          end: { line: position.line, character: position.character }
+        }
+      };
+
+      // Execute the custom LSP command
+      const result = await vscode.commands.executeCommand<string[] | string>(
+        'hylo.listGivens',
+        location
+      );
+
+      // Parse the result (handle both array and legacy string format)
+      let givens: string[] = [];
+      if (Array.isArray(result)) {
+        givens = result;
+      } else if (typeof result === 'string' && result) {
+        givens = result.split('\n').filter(line => line.trim());
+      }
+
+      // Send the result to the webview
+      const message: MessageToFrontend = {
+        type: 'updateSymbolInfo',
+        givens
+      };
+
+      this.view.webview.postMessage(message);
+    } catch (error) {
+      // Send empty array on error
+      const message: MessageToFrontend = {
+        type: 'updateSymbolInfo',
+        givens: []
+      };
+      this.view.webview.postMessage(message);
+    }
+  }
+
+  public dispose() {
+    for (const disposable of this.disposables) {
+      disposable.dispose();
+    }
+    this.disposables = [];
+  }
+
   private getHtmlForWebview(webview: vscode.Webview) {
     // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
 
@@ -74,7 +161,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
-			  <title>Hylo AST Explorer View</title>
+			  <title>Hylo Implicit Context</title>
 				<meta charset="UTF-8">
 
 				<!--
