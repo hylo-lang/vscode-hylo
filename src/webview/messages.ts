@@ -2,13 +2,13 @@ interface TypedMessage<T extends string> {
   type: T;
 }
 
-export interface OpenFileMessage extends TypedMessage<'openSourceFile'> {
+export interface OpenFileInWindow extends TypedMessage<'openFileInWindow'> {
   fileUrl: string;
 }
 
-export interface UpdateSymbolInfoMessage extends TypedMessage<'updateSymbolInfo'> {
+export interface ImplicitContextChanged extends TypedMessage<'implicitContextChanged'> {
   givens: string[];
 }
 
-export type MessageFromFrontend = OpenFileMessage;
-export type MessageToFrontend = UpdateSymbolInfoMessage;
+export type MessageFromFrontend = OpenFileInWindow;
+export type MessageToFrontend = ImplicitContextChanged;

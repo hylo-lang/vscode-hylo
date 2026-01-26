@@ -11,7 +11,7 @@ import {
   Trace,
   TransportKind
 } from 'vscode-languageclient/node';
-import { ASTExplorerViewProvider } from './ast-explorer-view';
+import { ImplicitContextViewProvider } from './implicit-context-view-provider';
 import { createHyloDebugAdapterDescriptorFactory } from './debug/hyloDebug';
 import {
   getInstalledVersion,
@@ -50,7 +50,9 @@ async function explicitlyUpdateLanguageServer() {
   );
   globalClient?.restart();
 
-  if (!updateSucceeded) return;
+  if (!updateSucceeded) {
+    return;
+  }
 
   // Restart the language server to use the new version
   vscode.window.showInformationMessage(
@@ -166,13 +168,13 @@ export async function activate(context: vscode.ExtensionContext) {
     `Activating Hylo extension in directory ${context.extensionPath}`
   );
 
-  const astExplorerViewProvider = new ASTExplorerViewProvider(
+  const astExplorerViewProvider = new ImplicitContextViewProvider(
     context.extensionUri
   );
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      ASTExplorerViewProvider.viewType,
+      ImplicitContextViewProvider.viewType,
       astExplorerViewProvider
     ),
     astExplorerViewProvider

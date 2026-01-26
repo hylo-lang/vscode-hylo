@@ -1,1 +1,1 @@
-import './ast-explorer-view-frontend';
+import './implicit-context-view.ts';

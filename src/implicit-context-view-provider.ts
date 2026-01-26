@@ -1,38 +1,45 @@
 import * as vscode from 'vscode';
 import { MessageFromFrontend, MessageToFrontend } from './webview/messages';
 
-export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'hylo.ast-explorer';
+export class ImplicitContextViewProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'hylo.implicit-context';
 
   private view?: vscode.WebviewView;
+
+  /// Objects to dispose when disposing this provider
   private disposables: vscode.Disposable[] = [];
 
-  constructor(private readonly _extensionUri: vscode.Uri) {
-    // Listen for cursor position changes
+  /// The installation url of the extension, within which all the extension related resources can be found.
+  private readonly extensionDirectory: vscode.Uri;
+
+  constructor(extensionUri: vscode.Uri) {
+    this.extensionDirectory = extensionUri;
+
+    // Listen for cursor position changes in Hylo files
     this.disposables.push(
       vscode.window.onDidChangeTextEditorSelection((e) => {
         if (e.textEditor.document.languageId === 'hylo') {
-          this.updateSymbolInfo(e.textEditor);
+          this.updateImplicitContextView(e.textEditor);
         }
       })
     );
 
-    // Listen for active editor changes
+    // Listen for active editor changes in Hylo files
     this.disposables.push(
       vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor && editor.document.languageId === 'hylo') {
-          this.updateSymbolInfo(editor);
+          this.updateImplicitContextView(editor);
         }
       })
     );
 
-    // Listen for document changes (typing, etc.)
+    // Listen for document changes (typing, etc.) in Hylo files
     this.disposables.push(
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.languageId === 'hylo') {
           const activeEditor = vscode.window.activeTextEditor;
           if (activeEditor && activeEditor.document === e.document) {
-            this.updateSymbolInfo(activeEditor);
+            this.updateImplicitContextView(activeEditor);
           }
         }
       })
@@ -50,7 +57,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
       // Allow scripts in the webview
       enableScripts: true,
 
-      localResourceRoots: [this._extensionUri]
+      localResourceRoots: [this.extensionDirectory]
     };
 
     webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
@@ -58,8 +65,8 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((d) => {
       const data = d as MessageFromFrontend;
       switch (data.type) {
-        case 'openSourceFile':
-          console.log('openSourceFile', data.fileUrl);
+        case 'openFileInWindow':
+          console.log('openFileInWindow', data.fileUrl);
           vscode.window.showTextDocument(vscode.Uri.parse(data.fileUrl), {
             preserveFocus: true
           });
@@ -68,20 +75,7 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  public addColor() {
-    if (this.view) {
-      this.view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-      // this.view.webview.postMessage({ type: 'addColor' });
-    }
-  }
-
-  public clearColors() {
-    if (this.view) {
-      // this.view.webview.postMessage({ type: 'clearColors' });
-    }
-  }
-
-  private async updateSymbolInfo(editor: vscode.TextEditor) {
+  private async updateImplicitContextView(editor: vscode.TextEditor) {
     if (!this.view) {
       return;
     }
@@ -100,33 +94,20 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
       };
 
       // Execute the custom LSP command
-      const result = await vscode.commands.executeCommand<string[] | string>(
+      const givens = await vscode.commands.executeCommand<string[]>(
         'hylo.listGivens',
         location
       );
 
-      // Parse the result (handle both array and legacy string format)
-      let givens: string[] = [];
-      if (Array.isArray(result)) {
-        givens = result;
-      } else if (typeof result === 'string' && result) {
-        givens = result.split('\n').filter((line) => line.trim());
-      }
-
-      // Send the result to the webview
-      const message: MessageToFrontend = {
-        type: 'updateSymbolInfo',
-        givens
-      };
-
-      this.view.webview.postMessage(message);
+      await this.postMessage({
+        type: 'implicitContextChanged',
+        givens: givens
+      });
     } catch (error) {
-      // Send empty array on error
-      const message: MessageToFrontend = {
-        type: 'updateSymbolInfo',
+      await this.postMessage({
+        type: 'implicitContextChanged',
         givens: []
-      };
-      this.view.webview.postMessage(message);
+      });
     }
   }
 
@@ -137,21 +118,29 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
     this.disposables = [];
   }
 
+  /// Returns true iff the message was delivered.
+  private async postMessage(message: MessageToFrontend) {
+    if (this.view) {
+      return await this.view.webview.postMessage(message);
+    }
+    return false;
+  }
+
   private getHtmlForWebview(webview: vscode.Webview) {
     // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
 
     const vscodeElementsBundleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
-        this._extensionUri,
+        this.extensionDirectory,
         'node_modules/@vscode-elements/elements/dist/bundled.js'
       )
     );
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'out/webview.js')
+      vscode.Uri.joinPath(this.extensionDirectory, 'out/webview.js')
     );
     const codiconsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
-        this._extensionUri,
+        this.extensionDirectory,
         'node_modules/@vscode/codicons/dist/codicon.css'
       )
     );
@@ -163,13 +152,6 @@ export class ASTExplorerViewProvider implements vscode.WebviewViewProvider {
 			<head>
 			  <title>Hylo Implicit Context</title>
 				<meta charset="UTF-8">
-
-				<!--
-					Use a content security policy to only allow loading styles from our extension directory,
-					and only allow scripts that have a specific nonce.
-					(See the 'webview-sample' extension sample for img-src content security policy examples)
-				-->
-
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link href="${codiconsUri}" rel="stylesheet" id="vscode-codicon-stylesheet"/>
 			</head>

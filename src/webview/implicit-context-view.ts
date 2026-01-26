@@ -40,7 +40,7 @@ class SymbolInfoView {
 
   private handleMessage(message: MessageToFrontend) {
     switch (message.type) {
-      case 'updateSymbolInfo':
+      case 'implicitContextChanged':
         this.updateContent(message.givens);
         break;
     }

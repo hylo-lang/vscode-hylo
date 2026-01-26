@@ -109,7 +109,7 @@
     "views": {
       "hylo": [
         {
-          "id": "hylo.ast-explorer",
+          "id": "hylo.implicit-context",
           "name": "Implicit context",
           "type": "webview",
           "icon": "./icons/colored-light.png"
