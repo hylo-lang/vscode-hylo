@@ -216,7 +216,7 @@ export async function activate(context: vscode.ExtensionContext) {
   globalClient = await initializeLanguageServer(context);
 
   // Register custom LSP command handler
-  commands.registerCommand('hylo.listGivens', async (location) => {
+  commands.registerCommand('hylo.givens', async (location) => {
     if (!globalClient) {
       return '';
     }
@@ -224,13 +224,13 @@ export async function activate(context: vscode.ExtensionContext) {
       const result = await globalClient.sendRequest(
         'workspace/executeCommand',
         {
-          command: 'listGivens',
+          command: 'givens',
           arguments: [location]
         }
       );
       return result || '';
     } catch (error) {
-      console.error('Error executing listGivens command:', error);
+      console.error('Error executing givens command:', error);
       return '';
     }
   });

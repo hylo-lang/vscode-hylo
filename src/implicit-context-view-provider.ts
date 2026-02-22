@@ -95,7 +95,7 @@ export class ImplicitContextViewProvider implements vscode.WebviewViewProvider {
 
       // Execute the custom LSP command
       const givens = await vscode.commands.executeCommand<string[]>(
-        'hylo.listGivens',
+        'hylo.givens',
         location
       );
 
