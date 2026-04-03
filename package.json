@@ -30,7 +30,7 @@
     "mvs",
     "syntax highlighting"
   ],
-  "publisher": "hylo",
+  "publisher": "hylo-lang",
   "repository": {
     "type": "git",
     "url": "https://github.com/hylo-lang/vscode-hylo"
