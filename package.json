@@ -3,7 +3,7 @@
   "displayName": "Hylo Language",
   "description": "VSCode extension for Hylo language",
   "icon": "icons/colored-dark.png",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "engines": {
     "vscode": "^1.96.0"
   },
