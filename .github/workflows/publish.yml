@@ -20,13 +20,13 @@ jobs:
         run: npm ci
 
       - name: Publish to Open VSX Registry
-        uses: hylo-lang/publish-vscode-extension@v1.0.1
+        uses: hylo-lang/publish-vscode-extension@v1.0.2
         id: publishToOpenVSX
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
 
       - name: Publish to Visual Studio Marketplace
-        uses: hylo-lang/publish-vscode-extension@v1.0.1
+        uses: hylo-lang/publish-vscode-extension@v1.0.2
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
