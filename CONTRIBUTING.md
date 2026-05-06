@@ -8,7 +8,15 @@ npm i
 
 Try the extension: press `F5` or select `Run Extension` in the Run and Debug pane.
 
-## Publishing
+## Publishing via GitHub Actions
+
+1. Increase the version number in `package.json`.
+2. Create a tag corresponding to the version in `package.json`.
+3. Push the tag to GitHub.
+4. Publish a release for the tag. An action will automatically start and publish the extension to VSCode and Open VSX
+   marketplace.
+
+## Manual Publishing
 
 1. Create a Microsoft / VSCode marketplace account.
 2. Ask for an invite for the `hylo-lang` Azure DevOps organization, and provide your user id.
