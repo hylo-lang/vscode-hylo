@@ -1,9 +1,9 @@
 {
   "name": "hylo",
   "displayName": "Hylo Language",
-  "description": "VSCode extension for Hylo language",
+  "description": "Hylo language support",
   "icon": "icons/colored-dark.png",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "engines": {
     "vscode": "^1.96.0"
   },
