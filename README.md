@@ -7,11 +7,13 @@ If you want to get involved with developing Hylo, please reach out
 on [Slack](https://join.slack.com/t/val-qs97696/shared_invite/zt-1z3dsblrq-y4qXfEE6wr6uMEJSN9uFyg).
 
 ## Actions
+
 - Hylo: Restart Language Server
 - Hylo: Update Language Server
 - Hylo: Focus on Implicit Context View
 
 ## Language Server Features
+
 - Rename
 - References
 - Definition
@@ -26,206 +28,105 @@ on [Slack](https://join.slack.com/t/val-qs97696/shared_invite/zt-1z3dsblrq-y4qXf
 > The extension contains some commands related to running/debugging a Hylo program. These are a legacy
 > from the old compiler, they won't work yet with the [new compiler](https://github.com/hylo-lang/hylo-new).
 
-[//]: # (## Setting Up Your Environment)
-
-[//]: # (### First-Time Setup)
-
-[//]: # ()
-
-[//]: # (1. **Install the Hylo Compiler**)
-
-[//]: # (   - You will need to build the compiler from sources. For this, the recommended approach is to use **[development containers]&#40;https://code.visualstudio.com/docs/devcontainers/containers&#41;** and VSCode.)
-
-[//]: # (   - Check the instructions at https://github.com/hylo-lang/hylo)
-
-[//]: # (1. **Install the Extension**)
-
-[//]: # ()
-
-[//]: # (- Install this extension. If you are working inside the Hylo devcontainer, it should be installed automatically.)
-
-[//]: # ()
-
-[//]: # (3. **Set Up Compilation Using Command Template** &#40;Recommended&#41;:)
-
-[//]: # (   - Open VSCode Settings &#40;`Ctrl+,` or `File > Preferences > Settings`&#41;)
-
-[//]: # (   - Search for "Hylo")
-
-[//]: # (   - Enable `hylo.useCommandTemplate`)
-
-[//]: # (   - Configure `hylo.commandTemplate` to match your setup. For example:)
-
-[//]: # (     - Default: `hc ${ARGS}` &#40;assumes the compiler is in your PATH&#41;)
-
-[//]: # (     - Example with Swift: `swift run hc ${ARGS}`)
-
-[//]: # ()
-
-[//]: # (4. **Alternative: Configure the Compiler Path**:)
-
-[//]: # (   - If you have built the compiler and prefer direct usage:)
-
-[//]: # (     - Open VSCode Settings &#40;`Ctrl+,` or `File > Preferences > Settings`&#41;)
-
-[//]: # (     - Search for "Hylo")
-
-[//]: # (     - Set `hylo.compilerPath` to the path of your Hylo compiler)
-
-[//]: # (     - Example with absolute path: `C:\hylo\bin\hc` or `/usr/local/bin/hc`)
-
-[//]: # ()
-
-[//]: # (### Project Configuration)
-
-[//]: # ()
-
-[//]: # (Create a `.vscode/launch.json` or add it using the `Debug: Add configuration` action.)
-
-[//]: # ()
-
-[//]: # (```json)
-
-[//]: # ({)
-
-[//]: # (  "version": "0.2.0",)
-
-[//]: # (  "configurations": [)
-
-[//]: # (    {)
-
-[//]: # (      "type": "hylo",)
-
-[//]: # (      "request": "launch",)
-
-[//]: # (      "name": "Run Hylo Module",)
-
-[//]: # (      "program": "${workspaceFolder}/MyHyloModule",)
-
-[//]: # (      "isFolder": true)
-
-[//]: # (    },)
-
-[//]: # (    {)
-
-[//]: # (      "type": "hylo",)
-
-[//]: # (      "request": "launch",)
-
-[//]: # (      "name": "Run Hylo File",)
-
-[//]: # (      "program": "${workspaceFolder}/main.hylo")
-
-[//]: # (    })
-
-[//]: # (  ])
-
-[//]: # (})
-
-[//]: # (```)
-
-[//]: # ()
-
-[//]: # (## Common Workflows)
-
-[//]: # ()
-
-[//]: # (### Single-File Development)
-
-[//]: # ()
-
-[//]: # (Perfect for learning Hylo or creating small examples:)
-
-[//]: # ()
-
-[//]: # (1. Create a new file with `.hylo` extension)
-
-[//]: # (2. Write your Hylo code)
-
-[//]: # (3. Run it directly with:)
-
-[//]: # (   - The play button in the editor title area)
-
-[//]: # (   - Right-click → "Hylo: Run Current File")
-
-[//]: # (   - `Ctrl+Shift+P` → "Hylo: Run Current File")
-
-[//]: # ()
-
-[//]: # (Example workflow for a "Hello World" program:)
-
-[//]: # ()
-
-[//]: # (1. Create `hello.hylo`:)
-
-[//]: # (   ```hylo)
-
-[//]: # (   fun main&#40;&#41; {)
-
-[//]: # (     print&#40;"Hello, Hylo!"&#41;)
-
-[//]: # (   })
-
-[//]: # (   ```)
-
-[//]: # (2. Click the play button in the editor title)
-
-[//]: # (3. See output in the "Hylo" output panel)
-
-[//]: # ()
-
-[//]: # (### Multi-File Projects)
-
-[//]: # ()
-
-[//]: # (For more complex projects with multiple Hylo files:)
-
-[//]: # ()
-
-[//]: # (1. Organize your files into folders)
-
-[//]: # (2. Right-click on a folder → "Hylo: Compile and Run Folder")
-
-[//]: # (3. Or set up a launch configuration for better ergonomics &#40;run via F5&#41;:)
-
-[//]: # (   ```json)
-
-[//]: # (   {)
-
-[//]: # (     "type": "hylo",)
-
-[//]: # (     "request": "launch",)
-
-[//]: # (     "name": "Run Project",)
-
-[//]: # (     "program": "${workspaceFolder}/src",)
-
-[//]: # (     "isFolder": true)
-
-[//]: # (   })
-
-[//]: # (   ```)
-
-[//]: # ()
-
-[//]: # (#### Custom Compiler Path)
-
-[//]: # ()
-
-[//]: # (```json)
-
-[//]: # ({)
-
-[//]: # (  "type": "hylo",)
-
-[//]: # (  "request": "launch",)
-
-[//]: # (  "name": "Debug with Development Compiler",)
-
-[//]: # (  "program": "${file}",)
-
-[//]: # (  "compilerPath": "${workspaceFolder}/dev-tools/hc")
-
-[//]: # (})
-
-[//]: # (```)
+[//]: # '## Setting Up Your Environment'
+[//]: # '### First-Time Setup'
+[//]: #
+[//]: # '1. **Install the Hylo Compiler**'
+[//]: # '   - You will need to build the compiler from sources. For this, the recommended approach is to use **[development containers](https://code.visualstudio.com/docs/devcontainers/containers)** and VSCode.'
+[//]: # '   - Check the instructions at https://github.com/hylo-lang/hylo'
+[//]: # '1. **Install the Extension**'
+[//]: #
+[//]: # '- Install this extension. If you are working inside the Hylo devcontainer, it should be installed automatically.'
+[//]: #
+[//]: # '3. **Set Up Compilation Using Command Template** (Recommended):'
+[//]: # '   - Open VSCode Settings (`Ctrl+,` or `File > Preferences > Settings`)'
+[//]: # '   - Search for "Hylo"'
+[//]: # '   - Enable `hylo.useCommandTemplate`'
+[//]: # '   - Configure `hylo.commandTemplate` to match your setup. For example:'
+[//]: # '     - Default: `hc ${ARGS}` (assumes the compiler is in your PATH)'
+[//]: # '     - Example with Swift: `swift run hc ${ARGS}`'
+[//]: #
+[//]: # '4. **Alternative: Configure the Compiler Path**:'
+[//]: # '   - If you have built the compiler and prefer direct usage:'
+[//]: # '     - Open VSCode Settings (`Ctrl+,` or `File > Preferences > Settings`)'
+[//]: # '     - Search for "Hylo"'
+[//]: # '     - Set `hylo.compilerPath` to the path of your Hylo compiler'
+[//]: # '     - Example with absolute path: `C:\\hylo\\bin\\hc` or `/usr/local/bin/hc`'
+[//]: #
+[//]: # '### Project Configuration'
+[//]: #
+[//]: # 'Create a `.vscode/launch.json` or add it using the `Debug: Add configuration` action.'
+[//]: #
+[//]: # '```json'
+[//]: # '{'
+[//]: # '  "version": "0.2.0",'
+[//]: # '  "configurations": ['
+[//]: # '    {'
+[//]: # '      "type": "hylo",'
+[//]: # '      "request": "launch",'
+[//]: # '      "name": "Run Hylo Module",'
+[//]: # '      "program": "${workspaceFolder}/MyHyloModule",'
+[//]: # '      "isFolder": true'
+[//]: # '    },'
+[//]: # '    {'
+[//]: # '      "type": "hylo",'
+[//]: # '      "request": "launch",'
+[//]: # '      "name": "Run Hylo File",'
+[//]: # '      "program": "${workspaceFolder}/main.hylo"'
+[//]: # '    }'
+[//]: # '  ]'
+[//]: # '}'
+[//]: # '```'
+[//]: #
+[//]: # '## Common Workflows'
+[//]: #
+[//]: # '### Single-File Development'
+[//]: #
+[//]: # 'Perfect for learning Hylo or creating small examples:'
+[//]: #
+[//]: # '1. Create a new file with `.hylo` extension'
+[//]: # '2. Write your Hylo code'
+[//]: # '3. Run it directly with:'
+[//]: # '   - The play button in the editor title area'
+[//]: # '   - Right-click → "Hylo: Run Current File"'
+[//]: # '   - `Ctrl+Shift+P` → "Hylo: Run Current File"'
+[//]: #
+[//]: # 'Example workflow for a "Hello World" program:'
+[//]: #
+[//]: # '1. Create `hello.hylo`:'
+[//]: # '   ```hylo'
+[//]: # '   fun main() {'
+[//]: # '     print("Hello, Hylo!")'
+[//]: # '   }'
+[//]: # '   ```'
+[//]: # '2. Click the play button in the editor title'
+[//]: # '3. See output in the "Hylo" output panel'
+[//]: #
+[//]: # '### Multi-File Projects'
+[//]: #
+[//]: # 'For more complex projects with multiple Hylo files:'
+[//]: #
+[//]: # '1. Organize your files into folders'
+[//]: # '2. Right-click on a folder → "Hylo: Compile and Run Folder"'
+[//]: # '3. Or set up a launch configuration for better ergonomics (run via F5):'
+[//]: # '   ```json'
+[//]: # '   {'
+[//]: # '     "type": "hylo",'
+[//]: # '     "request": "launch",'
+[//]: # '     "name": "Run Project",'
+[//]: # '     "program": "${workspaceFolder}/src",'
+[//]: # '     "isFolder": true'
+[//]: # '   }'
+[//]: # '   ```'
+[//]: #
+[//]: # '#### Custom Compiler Path'
+[//]: #
+[//]: # '```json'
+[//]: # '{'
+[//]: # '  "type": "hylo",'
+[//]: # '  "request": "launch",'
+[//]: # '  "name": "Debug with Development Compiler",'
+[//]: # '  "program": "${file}",'
+[//]: # '  "compilerPath": "${workspaceFolder}/dev-tools/hc"'
+[//]: # '}'
+[//]: # '```'
