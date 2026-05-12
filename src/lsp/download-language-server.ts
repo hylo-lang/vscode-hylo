@@ -1,9 +1,9 @@
 // import * as decompress from 'decompress'
-import * as decompress from 'decompress';
 import fetch from 'node-fetch';
 // import * as https from 'https'
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as tar from 'tar';
 // import { mkdir, writeFile, readFile, rm } from 'fs/promises'
 import { Readable, Transform } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -72,7 +72,7 @@ function getTargetLspFilename(): string {
       throw new Error(`Unsupported architecture: ${arch}`);
   }
 
-  return `hylo-language-server-${osName}-${archName}.zip`;
+  return `hylo-language-server-${osName}-${archName}.tar.zst`;
 }
 
 function monotonicTimeMillis() {
@@ -360,8 +360,8 @@ export async function doUpdateLanguageServer(
         );
 
         progress.report({ increment: 0, message: 'Extracting LSP server...' });
-        output.appendLine(`Unzip LSP archive: ${targetLspFilepath}`);
-        await decompress(targetLspFilepath, distDirectory);
+        output.appendLine(`Extracting LSP archive: ${targetLspFilepath}`);
+        await tar.x({zstd: true, file: targetLspFilepath, cwd: distDirectory, strip: 1});
 
         const manifestPath = `${distDirectory}/manifest.json`;
         output.appendLine(`Write manifest: ${path.resolve(manifestPath)}`);
