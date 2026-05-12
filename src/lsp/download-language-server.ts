@@ -287,7 +287,7 @@ export async function doUpdateLanguageServer(
         progress.report({ increment: 0, message: 'Checking for updates...' });
 
         let releaseUrl =
-          specifiedVersion == 'latest'
+          specifiedVersion === 'latest'
             ? `${LSP_REPOSITORY_URL}/releases/latest`
             : `${LSP_REPOSITORY_URL}/releases/tags/${specifiedVersion}`;
 
@@ -361,7 +361,12 @@ export async function doUpdateLanguageServer(
 
         progress.report({ increment: 0, message: 'Extracting LSP server...' });
         output.appendLine(`Extracting LSP archive: ${targetLspFilepath}`);
-        await tar.x({zstd: true, file: targetLspFilepath, cwd: distDirectory, strip: 1});
+        await tar.x({
+          zstd: true,
+          file: targetLspFilepath,
+          cwd: distDirectory,
+          strip: 1
+        });
 
         const manifestPath = `${distDirectory}/manifest.json`;
         output.appendLine(`Write manifest: ${path.resolve(manifestPath)}`);
