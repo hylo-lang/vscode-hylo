@@ -129,9 +129,7 @@ async function initializeLanguageServer(
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
     // Register the server for plain text documents
-    documentSelector: [
-      { scheme: 'file', language: 'hylo' }
-    ],
+    documentSelector: [{ scheme: 'file', language: 'hylo' }],
     synchronize: {
       // Synchronize the setting section 'languageServerExample' to the server
       configurationSection: 'hylo',
