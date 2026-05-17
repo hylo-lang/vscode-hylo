@@ -153,7 +153,7 @@ async function initializeLanguageServer(
     forceDebug
   );
   client.registerProposedFeatures();
-  client.setTrace(Trace.Messages);
+  await client.setTrace(Trace.Off);
 
   client.start().then(() => {
     outputChannel.appendLine(`Language server started successfully.`);
