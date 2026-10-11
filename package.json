@@ -3,7 +3,7 @@
   "displayName": "Hylo Language",
   "description": "Hylo language support",
   "icon": "icons/colored-dark.png",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -60,6 +60,64 @@
           "light": "./icons/colored-light.png",
           "dark": "./icons/colored-dark.png"
         }
+      },
+      {
+        "id": "hylo-ir-expected",
+        "aliases": [
+          "Hylo IR (expected)"
+        ],
+        "extensions": [
+          ".refined-ir.expected",
+          ".raw-ir.expected"
+        ],
+        "configuration": "./syntaxes/hylo-ir.language-configuration.json",
+        "icon": {
+          "light": "./icons/hylo-ir-expected.svg",
+          "dark": "./icons/hylo-ir-expected.svg"
+        }
+      },
+      {
+        "id": "hylo-ir-observed",
+        "aliases": [
+          "Hylo IR (observed)"
+        ],
+        "extensions": [
+          ".refined-ir.observed",
+          ".raw-ir.observed"
+        ],
+        "configuration": "./syntaxes/hylo-ir.language-configuration.json",
+        "icon": {
+          "light": "./icons/hylo-ir-observed.svg",
+          "dark": "./icons/hylo-ir-observed.svg"
+        }
+      },
+      {
+        "id": "llvm-ir-expected",
+        "aliases": [
+          "LLVM IR (expected)"
+        ],
+        "extensions": [
+          ".llvm-ir.expected"
+        ],
+        "configuration": "./syntaxes/llvm-ir.language-configuration.json",
+        "icon": {
+          "light": "./icons/llvm-ir-expected.svg",
+          "dark": "./icons/llvm-ir-expected.svg"
+        }
+      },
+      {
+        "id": "llvm-ir-observed",
+        "aliases": [
+          "LLVM IR (observed)"
+        ],
+        "extensions": [
+          ".llvm-ir.observed"
+        ],
+        "configuration": "./syntaxes/llvm-ir.language-configuration.json",
+        "icon": {
+          "light": "./icons/llvm-ir-observed.svg",
+          "dark": "./icons/llvm-ir-observed.svg"
+        }
       }
     ],
     "semanticTokenTypes": [
@@ -91,6 +149,26 @@
         "language": "hylo",
         "scopeName": "source.hylo",
         "path": "./syntaxes/hylo.tmLanguage.json"
+      },
+      {
+        "language": "hylo-ir-expected",
+        "scopeName": "source.hylo-ir",
+        "path": "./syntaxes/hylo-ir.tmLanguage.json"
+      },
+      {
+        "language": "hylo-ir-observed",
+        "scopeName": "source.hylo-ir",
+        "path": "./syntaxes/hylo-ir.tmLanguage.json"
+      },
+      {
+        "language": "llvm-ir-expected",
+        "scopeName": "source.llvm",
+        "path": "./syntaxes/llvm-ir.tmLanguage.json"
+      },
+      {
+        "language": "llvm-ir-observed",
+        "scopeName": "source.llvm",
+        "path": "./syntaxes/llvm-ir.tmLanguage.json"
       }
     ],
     "viewsContainers": {
