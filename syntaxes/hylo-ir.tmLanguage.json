@@ -2,13 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "hylo-ir",
   "displayName": "Hylo IR",
-  "aliases": [
-    "hir"
-  ],
+  "aliases": ["hir"],
   "scopeName": "source.hylo-ir",
-  "fileTypes": [
-    "hir"
-  ],
+  "fileTypes": ["hir"],
   "patterns": [
     {
       "include": "#comments"
